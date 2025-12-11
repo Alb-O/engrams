@@ -1,0 +1,5 @@
+name = "affinity-extractor"
+version = "0.1.0"
+description = "Extract design assets from Affinity Designer files (.af, .afdesign)"
+license = "MIT"
+context-triggers = [".af", ".afdesign", "affinity"]

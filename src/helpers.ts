@@ -1,4 +1,4 @@
-import matter from "gray-matter";
+import * as TOML from "@iarna/toml";
 import os from "os";
 import { promises as fs, Dirent } from "fs";
 import { basename, dirname, join, relative, sep } from "path";
@@ -16,23 +16,38 @@ export interface Module {
   metadata?: Record<string, string>;
   license?: string;
   content: string;
-  path: string;
+  /** Path to the openmodule.toml manifest */
+  manifestPath: string;
+  /** Phrases/words that trigger module visibility when they appear in context */
+  contextTriggers?: string[];
 }
 
-const MODULE_FILENAME = "MODULE.md";
+/** Manifest filename at module root */
+const MANIFEST_FILENAME = "openmodule.toml";
+/** Default prompt file relative to module root */
+const DEFAULT_PROMPT_PATH = "README.md";
 
-const ModuleFrontmatterSchema = z.object({
+const ModuleManifestSchema = z.object({
   name: z
     .string()
     .regex(/^[a-z0-9-]+$/, "Name must be lowercase alphanumeric with hyphens")
     .min(1, "Name cannot be empty"),
   description: z.string().min(20, "Description must be at least 20 characters for discoverability"),
+  version: z.string().optional(),
   license: z.string().optional(),
+  /** Relative path to prompt file from module root. Defaults to README.md */
+  prompt: z.string().optional(),
+  /** Phrases/words that trigger module visibility when they appear in context */
+  "context-triggers": z.array(z.string()).optional(),
   "allowed-tools": z.array(z.string()).optional(),
   metadata: z.record(z.string(), z.string()).optional(),
+  author: z.object({
+    name: z.string().optional(),
+    url: z.string().optional(),
+  }).optional(),
 });
 
-type ModuleFrontmatter = z.infer<typeof ModuleFrontmatterSchema>;
+type ModuleManifest = z.infer<typeof ModuleManifestSchema>;
 
 export function logWarning(message: string, ...args: unknown[]) {
   console.warn(`[${pkg.name}] ${message}`, ...args);
@@ -40,6 +55,13 @@ export function logWarning(message: string, ...args: unknown[]) {
 
 export function logError(message: string, ...args: unknown[]) {
   console.error(`[${pkg.name}] ${message}`, ...args);
+}
+
+function logManifestErrors(manifestPath: string, error: z.ZodError<ModuleManifest>) {
+  logError(`Invalid manifest in ${manifestPath}:`);
+  for (const issue of error.issues) {
+    logError(` - ${issue.path.join(".")}: ${issue.message}`);
+  }
 }
 
 export function generateToolName(modulePath: string, baseDir?: string): string {
@@ -61,56 +83,74 @@ export function generateToolName(modulePath: string, baseDir?: string): string {
   return `modules_${components.join("_").replace(/-/g, "_")}`;
 }
 
-function logFrontmatterErrors(modulePath: string, error: z.ZodError<ModuleFrontmatter>) {
-  logError(`Invalid frontmatter in ${modulePath}:`);
-  for (const issue of error.issues) {
-    logError(` - ${issue.path.join(".")}: ${issue.message}`);
-  }
-}
-
-export async function parseModule(modulePath: string, baseDir: string): Promise<Module | null> {
-  if (typeof modulePath !== "string" || modulePath.length === 0) {
-    logWarning("Skipping module with invalid path:", modulePath);
+/**
+ * Parses a module from its manifest file.
+ * @param manifestPath - Path to the openmodule.toml file
+ * @param baseDir - Base directory for generating tool names
+ */
+export async function parseModule(manifestPath: string, baseDir: string): Promise<Module | null> {
+  if (typeof manifestPath !== "string" || manifestPath.length === 0) {
+    logWarning("Skipping module with invalid path:", manifestPath);
     return null;
   }
 
+  const moduleDirectory = dirname(manifestPath);
+  const moduleFolderName = basename(moduleDirectory);
+
   try {
-    const raw = await fs.readFile(modulePath, "utf8");
-    const { data, content } = matter(raw);
-    const parsed = ModuleFrontmatterSchema.safeParse(data);
+    const manifestRaw = await fs.readFile(manifestPath, "utf8");
+    const manifestData = TOML.parse(manifestRaw);
+    const parsed = ModuleManifestSchema.safeParse(manifestData);
 
     if (!parsed.success) {
-      logFrontmatterErrors(modulePath, parsed.error);
+      logManifestErrors(manifestPath, parsed.error);
       return null;
     }
 
-    const moduleDirectory = dirname(modulePath);
-    const moduleFolderName = basename(moduleDirectory);
-
     if (parsed.data.name !== moduleFolderName) {
       logError(
-        `Name mismatch in ${modulePath}: frontmatter name "${parsed.data.name}" does not match directory "${moduleFolderName}".`,
+        `Name mismatch in ${manifestPath}: manifest name "${parsed.data.name}" does not match directory "${moduleFolderName}".`,
       );
       return null;
+    }
+
+    // Read prompt file (configurable via manifest, defaults to README.md at module root)
+    const promptRelativePath = parsed.data.prompt || DEFAULT_PROMPT_PATH;
+    const promptPath = join(moduleDirectory, promptRelativePath);
+    
+    let promptContent = "";
+    try {
+      promptContent = await fs.readFile(promptPath, "utf8");
+    } catch (error: any) {
+      if (error?.code === "ENOENT") {
+        logWarning(`Missing prompt file: ${promptPath}`);
+      } else {
+        throw error;
+      }
     }
 
     return {
       name: parsed.data.name,
       directory: moduleDirectory,
-      toolName: generateToolName(modulePath, baseDir),
+      toolName: generateToolName(manifestPath, baseDir),
       description: parsed.data.description,
       allowedTools: parsed.data["allowed-tools"],
+      contextTriggers: parsed.data["context-triggers"],
       metadata: parsed.data.metadata,
       license: parsed.data.license,
-      content: content.trim(),
-      path: modulePath,
+      content: promptContent.trim(),
+      manifestPath,
     };
   } catch (error) {
-    logError(`Error parsing module ${modulePath}:`, error);
+    logError(`Error parsing module ${manifestPath}:`, error);
     return null;
   }
 }
 
+/**
+ * Finds all openmodule.toml files within a base path.
+ * Returns paths to manifest files.
+ */
 export async function findModuleFiles(basePath: string): Promise<string[]> {
   const moduleFiles: string[] = [];
   const visited = new Set<string>();
@@ -163,7 +203,7 @@ export async function findModuleFiles(basePath: string): Promise<string[]> {
 
       if (stat.isDirectory()) {
         queue.push(fullPath);
-      } else if (stat.isFile() && entry.name === MODULE_FILENAME) {
+      } else if (stat.isFile() && entry.name === MANIFEST_FILENAME) {
         moduleFiles.push(fullPath);
       }
     }
@@ -258,8 +298,8 @@ export interface FileTreeOptions {
   includeMetadata?: boolean;
 }
 
-// Hide these files/directories by default. The agent doesn't need to see MODULE.md, it should already be in context.
-const DEFAULT_EXCLUDE_PATTERNS = [/MODULE\.md/, /^\.ignore$/, /^\.oneliner(\.txt)?$/, /\.git/, /node_modules/, /dist/, /\.DS_Store/];
+// Hide these files/directories by default. The manifest is already parsed, agent doesn't need to see it.
+const DEFAULT_EXCLUDE_PATTERNS = [/^openmodule\.toml$/, /^\.ignore$/, /^\.oneliner(\.txt)?$/, /\.git/, /node_modules/, /dist/, /\.DS_Store/];
 
 interface TreeEntry {
   name: string;

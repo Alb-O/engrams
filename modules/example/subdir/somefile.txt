@@ -1,0 +1,1 @@
+There are no limits to the amount or types of files that can be inlcuded in modules.

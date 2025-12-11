@@ -1,13 +1,64 @@
 # openmodules
 
-Discovers `MODULE.md` files following Anthropic's Agent Modules spec and exposes each as a tool named `modules_<path>`. The plugin scans three locations in priority order: `$XDG_CONFIG_HOME/opencode/modules` (or `~/.config/opencode/modules`), `~/.opencode/modules/`, and `<project>/.opencode/modules/`. Later paths override earlier ones when tool names collide.
+Discovers modules and exposes each as a tool named `modules_<name>`. The plugin scans three locations in priority order: `$XDG_CONFIG_HOME/opencode/modules` (or `~/.config/opencode/modules`), `~/.opencode/modules/`, and `<project>/.opencode/modules/`. Later paths override earlier ones when tool names collide.
 
-When a module tool is invoked, the plugin injects the module content into the session via `noReply` prompts. It also generates a flat listing of absolute file paths within the module directory, making scripts directly executable without path confusion.
+When a module tool is invoked, the plugin injects the module content into the session. It also generates a flat listing of absolute file paths within the module directory, making scripts directly executable without path confusion.
 
 ## Installation
 
 ```bash
 bun add openmodules
+```
+
+## Module Structure
+
+Each module is a directory containing an `openmodule.toml` manifest:
+
+```
+my-module/
+├── openmodule.toml         # Required - module manifest
+├── README.md               # Default prompt file (injected into agent context)
+├── .ignore                 # Optional - gitignore-style file filtering
+└── scripts/
+    ├── .oneliner.txt       # Directory description
+    └── backup.sh           # Scripts, tools, references, etc.
+```
+
+### `openmodule.toml`
+
+The module manifest:
+
+```toml
+name = "my-module"
+version = "0.1.0"
+description = "Short description for tool listing"
+
+# Optional: custom prompt file path (relative to module root)
+# Defaults to "README.md"
+prompt = "docs/AGENT.md"
+
+# Optional: phrases that make this module visible when they appear in context
+context-triggers = ["database backup", "backup script", "db dump"]
+
+[author]
+name = "Your Name"
+url = "https://github.com/you"
+```
+
+### Context Triggers
+
+Modules can specify `context-triggers` - phrases or words that, when detected in the conversation context, make the module "visible" (shown in available tools list). This enables contextual module discovery without cluttering the tool list.
+
+```toml
+context-triggers = [".af file", "affinity designer", "afdesign"]
+```
+
+### Prompt File
+
+By default, `README.md` at the module root is injected into the agent context when the module is invoked. Override this with the `prompt` field in the manifest:
+
+```toml
+prompt = "docs/instructions.md"      # Use a docs subdirectory
 ```
 
 ## File Descriptions
@@ -34,7 +85,7 @@ The resulting file list appears in the agent context as:
 ```
 /home/user/.opencode/modules/my-module/scripts/  # Shell scripts for automation
 /home/user/.opencode/modules/my-module/scripts/backup.sh  # Database backup utilities
-/home/user/.opencode/modules/my-module/utils/process.py  # Data processing module
+/home/user/.opencode/modules/my-module/data/config.json
 ```
 
 ## Filtering Files
@@ -49,4 +100,4 @@ node_modules/
 !important.log
 ```
 
-`MODULE.md`, `.ignore`, and `.oneliner` files are excluded by default.
+The `openmodule.toml`, `.ignore`, and `.oneliner` files are excluded from listings by default.

@@ -1,7 +1,7 @@
 {
   "name": "openmodules",
   "version": "0.1.0",
-  "description": "OpenCode plugin that discovers MODULE.md files and exposes them as tools",
+  "description": "OpenCode plugin that discovers modules and exposes them as tools",
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -22,7 +22,7 @@
     "prepublishOnly": "bun run build"
   },
   "dependencies": {
-    "gray-matter": "^4.0",
+    "@iarna/toml": "^2.2.5",
     "https-proxy-agent": "^7.0.6",
     "ignore": "^7.0.5",
     "picocolors": "^1.1.1",

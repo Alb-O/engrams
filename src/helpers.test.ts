@@ -5,12 +5,30 @@ import os from "node:os";
 
 import { discoverModules, findModuleFiles, generateFileTree, generateToolName, parseModule, type Module } from "./helpers";
 
-function moduleFileContents(name: string, description = "This is a sufficiently long description for testing.") {
-  return `---
-name: ${name}
-description: ${description}
----
-Body of the module.`;
+function moduleManifest(name: string, description = "This is a sufficiently long description for testing.") {
+  return `name = "${name}"
+version = "0.1.0"
+description = "${description}"
+`;
+}
+
+function modulePrompt(content = "Body of the module.") {
+  return content;
+}
+
+/**
+ * Creates a module with openmodule.toml at the root
+ */
+async function createModule(
+  moduleDir: string,
+  name: string,
+  description = "This is a sufficiently long description for testing.",
+  promptContent = "Body of the module."
+) {
+  await fs.mkdir(moduleDir, { recursive: true });
+  await fs.writeFile(path.join(moduleDir, "openmodule.toml"), moduleManifest(name, description));
+  await fs.writeFile(path.join(moduleDir, "README.md"), modulePrompt(promptContent));
+  return path.join(moduleDir, "openmodule.toml");
 }
 
 describe("modules helpers", () => {
@@ -24,14 +42,12 @@ describe("modules helpers", () => {
     await fs.rm(tempDir, { recursive: true, force: true });
   });
 
-  it("parses a valid MODULE.md and generates a tool name", async () => {
+  it("parses a valid module with openmodule.toml and generates a tool name", async () => {
     const baseDir = path.join(tempDir, ".opencode", "modules");
     const moduleDir = path.join(baseDir, "demo-module");
-    await fs.mkdir(moduleDir, { recursive: true });
-    const modulePath = path.join(moduleDir, "MODULE.md");
-    await fs.writeFile(modulePath, moduleFileContents("demo-module"));
+    const manifestPath = await createModule(moduleDir, "demo-module");
 
-    const parsed = await parseModule(modulePath, baseDir);
+    const parsed = await parseModule(manifestPath, baseDir);
 
     expect(parsed?.name).toBe("demo-module");
     expect(parsed?.directory).toBe(moduleDir);
@@ -39,14 +55,12 @@ describe("modules helpers", () => {
     expect(parsed?.content).toContain("Body of the module.");
   });
 
-  it("returns null when frontmatter name does not match directory", async () => {
+  it("returns null when manifest name does not match directory", async () => {
     const baseDir = path.join(tempDir, ".opencode", "modules");
     const moduleDir = path.join(baseDir, "folder-name");
-    await fs.mkdir(moduleDir, { recursive: true });
-    const modulePath = path.join(moduleDir, "MODULE.md");
-    await fs.writeFile(modulePath, moduleFileContents("different-name"));
+    const manifestPath = await createModule(moduleDir, "different-name");
 
-    const parsed = await parseModule(modulePath, baseDir);
+    const parsed = await parseModule(manifestPath, baseDir);
 
     expect(parsed).toBeNull();
   });
@@ -54,15 +68,14 @@ describe("modules helpers", () => {
   it("follows symlinked module directories", async () => {
     const baseDir = path.join(tempDir, ".opencode", "modules");
     const realModuleDir = path.join(tempDir, "real-module");
-    await fs.mkdir(realModuleDir, { recursive: true });
-    await fs.writeFile(path.join(realModuleDir, "MODULE.md"), moduleFileContents("linked-module"));
+    await createModule(realModuleDir, "linked-module");
 
     const linkPath = path.join(baseDir, "linked-module");
     await fs.mkdir(baseDir, { recursive: true });
     await fs.symlink(realModuleDir, linkPath, "dir");
 
     const files = await findModuleFiles(baseDir);
-    expect(files).toContain(path.join(linkPath, "MODULE.md"));
+    expect(files).toContain(path.join(linkPath, "openmodule.toml"));
   });
 
   it("discovers modules across multiple base paths with later entries overriding earlier tool keys", async () => {
@@ -70,13 +83,8 @@ describe("modules helpers", () => {
     const projectDir = path.join(tempDir, "project");
     const sharedName = "shared-module";
 
-    const configModule = path.join(configDir, sharedName, "MODULE.md");
-    await fs.mkdir(path.dirname(configModule), { recursive: true });
-    await fs.writeFile(configModule, moduleFileContents(sharedName, "Config description is long enough."));
-
-    const projectModule = path.join(projectDir, sharedName, "MODULE.md");
-    await fs.mkdir(path.dirname(projectModule), { recursive: true });
-    await fs.writeFile(projectModule, moduleFileContents(sharedName, "Project description is even longer for testing."));
+    await createModule(path.join(configDir, sharedName), sharedName, "Config description is long enough.");
+    await createModule(path.join(projectDir, sharedName), sharedName, "Project description is even longer for testing.");
 
     const modules = await discoverModules([configDir, projectDir]);
     expect(modules.map((s) => s.toolName)).toEqual(["modules_shared_module", "modules_shared_module"]);
@@ -91,16 +99,16 @@ describe("modules helpers", () => {
 
   it("generates tool names by flattening directories with underscores", () => {
     const baseDir = path.join(tempDir, ".opencode", "modules");
-    const modulePath = path.join(baseDir, "docs", "api-guides", "MODULE.md");
-    const toolName = generateToolName(modulePath, baseDir);
+    const manifestPath = path.join(baseDir, "docs", "api-guides", "openmodule.toml");
+    const toolName = generateToolName(manifestPath, baseDir);
 
     expect(toolName).toBe("modules_docs_api_guides");
   });
 
   it("handles missing baseDir when generating tool names", () => {
     const baseDir = path.join(tempDir, ".opencode", "modules");
-    const modulePath = path.join(baseDir, "solo", "MODULE.md");
-    const toolName = generateToolName(modulePath);
+    const manifestPath = path.join(baseDir, "solo", "openmodule.toml");
+    const toolName = generateToolName(manifestPath);
 
     expect(toolName).toBe("modules_solo");
   });

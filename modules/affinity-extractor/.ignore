@@ -1,1 +1,6 @@
+# This file is optional. Glob patterns listed here will be excluded
+# from the agent's view of the module. Ripgrep also respects the .ignore
+# file's patterns, which OpenCode uses for its built-in tools.
+
 LICENSE
+tmp/

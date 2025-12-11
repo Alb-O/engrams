@@ -2,14 +2,16 @@
 
 This directory contains example modules to demonstrate the plugin structure.
 
-Each module directory must contain a `MODULE.md` file that describes the module and its capabilities. Files can include a `oneliner:` marker in their first 10 lines to provide inline descriptions in the file listing.
+Each module directory must contain an `openmodule.toml` manifest. The prompt content defaults to `README.md` at the module root, but can be configured via the `prompt` field in the manifest.
 
 ## Structure
 
 ```
 modules/
 └── example/
-    ├── MODULE.md           # Required: module description
-    ├── hello.sh           # Scripts with oneliner markers
+    ├── openmodule.toml       # Required: module manifest
+    ├── README.md             # Default: agent instructions (configurable)
+    ├── .ignore               # Optional: file filtering
+    ├── hello.sh              # Scripts with oneliner markers
     └── process.py
 ```

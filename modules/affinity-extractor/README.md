@@ -1,9 +1,3 @@
----
-name: affinity-extractor
-description: Extract design assets from Affinity Designer files (.af, .afdesign). Use when users need to analyze or extract from Affinity files. Triggers on requests involving Affinity Designer file analysis, design asset extraction, or reverse-engineering .af files.
-license: MIT
----
-
 # Affinity Extractor
 
 Extract layer names, text content, fonts, and element bounding boxes from Affinity v3 files.
