@@ -6,10 +6,11 @@
 }:
 
 bun2nix.mkDerivation {
-  pname = "openmodules";
-  version = "1.0.0";
+  pname = "openmodule";
+  version = "0.1.0";
   src = src;
   bunDeps = bun2nix.fetchBunDeps {
     inherit bunNix;
   };
+  module = "src/index.ts";
 }

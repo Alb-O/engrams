@@ -35,23 +35,48 @@
     {
       packages = eachSystem (system: {
         default = pkgsFor.${system}.callPackage ./nix {
-          inherit (bun2nix.lib.${system}) mkBunDerivation;
+          bun2nix = bun2nix.packages.${system}.default;
           src = ./.;
           bunNix = ./nix/bun.nix;
         };
+
+        openmodule = pkgsFor.${system}.callPackage ./cli/nix {
+          bun2nix = bun2nix.packages.${system}.default;
+          src = ./cli;
+          bunNix = ./cli/nix/bun.nix;
+        };
       });
 
-      devShells = eachSystem (system: {
+      apps = eachSystem (system: {
+        openmodule = {
+          type = "app";
+          program = "${pkgsFor.${system}.callPackage ./cli/nix {
+            bun2nix = bun2nix.packages.${system}.default;
+            src = ./cli;
+            bunNix = ./cli/nix/bun.nix;
+          }}/bin/openmodule";
+        };
+      });
+
+      devShells = eachSystem (system: let
+        openmodulePkg = pkgsFor.${system}.callPackage ./cli/nix {
+          bun2nix = bun2nix.packages.${system}.default;
+          src = ./cli;
+          bunNix = ./cli/nix/bun.nix;
+        };
+      in {
         default = pkgsFor.${system}.mkShell {
-          packages = with pkgsFor.${system}; [
-            bun
-            nodejs
+          packages = [
+            pkgsFor.${system}.bun
+            pkgsFor.${system}.nodejs
             bun2nix.packages.${system}.default
+            openmodulePkg
           ];
 
           shellHook = ''
             if [ -t 0 ]; then
               bun install --frozen-lockfile
+              (cd cli && bun install --frozen-lockfile)
             fi
           '';
         };
