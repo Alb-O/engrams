@@ -1,6 +1,6 @@
 # openmodules
 
-Discovers modules and exposes each as a tool named `modules_<name>`. The plugin scans three locations in priority order: `$XDG_CONFIG_HOME/opencode/modules` (or `~/.config/opencode/modules`), `~/.opencode/modules/`, and `<project>/.opencode/modules/`. Later paths override earlier ones when tool names collide.
+Discovers modules and exposes each as a tool named `modules_<name>`. The plugin scans two locations in priority order: `$XDG_CONFIG_HOME/openmodules` (or `~/.config/openmodules`) for global modules, and `<project>/.openmodules/` for project-local modules. Later paths override earlier ones when tool names collide.
 
 When a module tool is invoked, the plugin injects the module content into the session. It also generates a flat listing of absolute file paths within the module directory, making scripts directly executable without path confusion.
 
@@ -83,9 +83,9 @@ Directories use a `.oneliner` or `.oneliner.txt` file containing raw description
 The resulting file list appears in the agent context as:
 
 ```
-/home/user/.opencode/modules/my-module/scripts/  # Shell scripts for automation
-/home/user/.opencode/modules/my-module/scripts/backup.sh  # Database backup utilities
-/home/user/.opencode/modules/my-module/data/config.json
+/home/user/.config/openmodules/my-module/scripts/  # Shell scripts for automation
+/home/user/.config/openmodules/my-module/scripts/backup.sh  # Database backup utilities
+/home/user/.config/openmodules/my-module/data/config.json
 ```
 
 ## Filtering Files

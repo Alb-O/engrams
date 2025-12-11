@@ -279,14 +279,13 @@ export async function discoverModules(basePaths: unknown): Promise<Module[]> {
 
 export function getDefaultModulePaths(rootDir: string): string[] {
   const xdgConfigHome = process.env.XDG_CONFIG_HOME;
-  const configModulesPath = xdgConfigHome
-    ? join(xdgConfigHome, "opencode", "modules")
-    : join(os.homedir(), ".config", "opencode", "modules");
+  const globalModulesPath = xdgConfigHome
+    ? join(xdgConfigHome, "openmodules")
+    : join(os.homedir(), ".config", "openmodules");
 
   return [
-    configModulesPath,
-    join(os.homedir(), ".opencode", "modules"),
-    join(rootDir, ".opencode", "modules"),
+    globalModulesPath,
+    join(rootDir, ".openmodules"),
   ];
 }
 

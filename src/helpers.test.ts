@@ -43,7 +43,7 @@ describe("modules helpers", () => {
   });
 
   it("parses a valid module with openmodule.toml and generates a tool name", async () => {
-    const baseDir = path.join(tempDir, ".opencode", "modules");
+    const baseDir = path.join(tempDir, ".openmodules");
     const moduleDir = path.join(baseDir, "demo-module");
     const manifestPath = await createModule(moduleDir, "demo-module");
 
@@ -56,7 +56,7 @@ describe("modules helpers", () => {
   });
 
   it("returns null when manifest name does not match directory", async () => {
-    const baseDir = path.join(tempDir, ".opencode", "modules");
+    const baseDir = path.join(tempDir, ".openmodules");
     const moduleDir = path.join(baseDir, "folder-name");
     const manifestPath = await createModule(moduleDir, "different-name");
 
@@ -66,7 +66,7 @@ describe("modules helpers", () => {
   });
 
   it("follows symlinked module directories", async () => {
-    const baseDir = path.join(tempDir, ".opencode", "modules");
+    const baseDir = path.join(tempDir, ".openmodules");
     const realModuleDir = path.join(tempDir, "real-module");
     await createModule(realModuleDir, "linked-module");
 
@@ -98,7 +98,7 @@ describe("modules helpers", () => {
   });
 
   it("generates tool names by flattening directories with underscores", () => {
-    const baseDir = path.join(tempDir, ".opencode", "modules");
+    const baseDir = path.join(tempDir, ".openmodules");
     const manifestPath = path.join(baseDir, "docs", "api-guides", "openmodule.toml");
     const toolName = generateToolName(manifestPath, baseDir);
 
@@ -106,7 +106,7 @@ describe("modules helpers", () => {
   });
 
   it("handles missing baseDir when generating tool names", () => {
-    const baseDir = path.join(tempDir, ".opencode", "modules");
+    const baseDir = path.join(tempDir, ".openmodules");
     const manifestPath = path.join(baseDir, "solo", "openmodule.toml");
     const toolName = generateToolName(manifestPath);
 
