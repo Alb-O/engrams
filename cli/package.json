@@ -1,0 +1,22 @@
+{
+  "name": "openmodule",
+  "version": "0.1.0",
+  "description": "CLI tool for managing openmodules",
+  "type": "module",
+  "bin": {
+    "openmodule": "./dist/index.js"
+  },
+  "scripts": {
+    "build": "bun build src/index.ts --outdir dist --target node",
+    "dev": "bun run src/index.ts",
+    "test": "bun test"
+  },
+  "dependencies": {
+    "cmd-ts": "^0.13.0",
+    "picocolors": "^1.1.1"
+  },
+  "devDependencies": {
+    "@types/bun": "^1.2.16",
+    "typescript": "^5.8.3"
+  }
+}
