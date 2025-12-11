@@ -156,5 +156,51 @@ describe("skills helpers", () => {
       const tree = await generateFileTree(path.join(tempDir, "does-not-exist"));
       expect(tree).toBe("");
     });
+
+    it("respects .ignore file with gitignore syntax", async () => {
+      const skillDir = path.join(tempDir, "ignore-test");
+      await fs.mkdir(path.join(skillDir, "src"), { recursive: true });
+      await fs.mkdir(path.join(skillDir, "secrets"), { recursive: true });
+      await fs.writeFile(path.join(skillDir, "SKILL.md"), "# Skill");
+      await fs.writeFile(path.join(skillDir, "src", "index.ts"), "export {}");
+      await fs.writeFile(path.join(skillDir, "secrets", "api-key.txt"), "secret");
+      await fs.writeFile(path.join(skillDir, "debug.log"), "logs");
+      // Create .ignore file
+      await fs.writeFile(path.join(skillDir, ".ignore"), "secrets/\n*.log\n");
+
+      const tree = await generateFileTree(skillDir);
+
+      expect(tree).toContain("src/");
+      expect(tree).toContain("SKILL.md");
+      expect(tree).not.toContain("secrets");
+      expect(tree).not.toContain("api-key.txt");
+      expect(tree).not.toContain("debug.log");
+    });
+
+    it("supports negation patterns in .ignore file", async () => {
+      const skillDir = path.join(tempDir, "ignore-negation-test");
+      await fs.mkdir(path.join(skillDir, "logs"), { recursive: true });
+      await fs.writeFile(path.join(skillDir, "logs", "debug.log"), "debug");
+      await fs.writeFile(path.join(skillDir, "logs", "important.log"), "important");
+      // Ignore all logs except important.log
+      await fs.writeFile(path.join(skillDir, ".ignore"), "logs/*.log\n!logs/important.log\n");
+
+      const tree = await generateFileTree(skillDir);
+
+      expect(tree).toContain("logs/");
+      expect(tree).toContain("important.log");
+      expect(tree).not.toContain("debug.log");
+    });
+
+    it("works without .ignore file", async () => {
+      const skillDir = path.join(tempDir, "no-ignore-test");
+      await fs.mkdir(path.join(skillDir, "src"), { recursive: true });
+      await fs.writeFile(path.join(skillDir, "src", "index.ts"), "export {}");
+
+      const tree = await generateFileTree(skillDir);
+
+      expect(tree).toContain("src/");
+      expect(tree).toContain("index.ts");
+    });
   });
 });

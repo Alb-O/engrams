@@ -2,6 +2,7 @@ import matter from "gray-matter";
 import os from "os";
 import { promises as fs, Dirent } from "fs";
 import { basename, dirname, join, relative, sep } from "path";
+import ignore, { type Ignore } from "ignore";
 import { z } from "zod";
 import pkg from "../package.json";
 
@@ -252,9 +253,10 @@ export interface FileTreeOptions {
   maxDepth?: number;
   exclude?: RegExp[];
   dirsFirst?: boolean;
+  ignoreFile?: string;
 }
 
-const DEFAULT_EXCLUDE_PATTERNS = [/node_modules/, /\.git/, /dist/, /\.DS_Store/];
+const DEFAULT_EXCLUDE_PATTERNS = [/node_modules/, /\.git/, /dist/, /\.DS_Store/, /^\.ignore$/];
 
 interface TreeEntry {
   name: string;
@@ -262,11 +264,33 @@ interface TreeEntry {
 }
 
 /**
+ * Loads ignore patterns from a file (gitignore syntax).
+ * Returns null if file doesn't exist.
+ */
+async function loadIgnoreFile(filePath: string): Promise<Ignore | null> {
+  try {
+    const content = await fs.readFile(filePath, "utf-8");
+    return ignore().add(content);
+  } catch {
+    return null;
+  }
+}
+
+/**
  * Generates an ASCII file tree representation of a directory.
  * Pure async implementation using fs.promises.
+ * Supports .ignore file with gitignore syntax.
  */
 export async function generateFileTree(directory: string, options: FileTreeOptions = {}): Promise<string> {
-  const { maxDepth = 4, exclude = DEFAULT_EXCLUDE_PATTERNS, dirsFirst = true } = options;
+  const {
+    maxDepth = 4,
+    exclude = DEFAULT_EXCLUDE_PATTERNS,
+    dirsFirst = true,
+    ignoreFile = ".ignore",
+  } = options;
+
+  // Load .ignore file from root directory
+  const ig = await loadIgnoreFile(join(directory, ignoreFile));
 
   const shouldExclude = (name: string): boolean => {
     return exclude.some((pattern) => pattern.test(name));
@@ -295,6 +319,14 @@ export async function generateFileTree(directory: string, options: FileTreeOptio
         } catch {
           continue; // Skip broken symlinks
         }
+      }
+
+      // Check against .ignore patterns using relative path from root
+      if (ig) {
+        const relativePath = relative(directory, join(dir, entry.name));
+        // For directories, append trailing slash to match gitignore directory patterns
+        const pathToCheck = isDir ? `${relativePath}/` : relativePath;
+        if (ig.ignores(pathToCheck)) continue;
       }
 
       items.push({ name: entry.name, isDirectory: isDir });
