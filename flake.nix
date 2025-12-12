@@ -23,6 +23,7 @@
 
   outputs =
     {
+      self,
       nixpkgs,
       systems,
       bun2nix,
@@ -33,7 +34,7 @@
       pkgsFor = eachSystem (system: import nixpkgs { inherit system; });
     in
     {
-      packages = eachSystem (system: {
+      packages = eachSystem (system: rec {
         default = pkgsFor.${system}.callPackage ./nix {
           bun2nix = bun2nix.packages.${system}.default;
           src = ./.;
@@ -44,17 +45,14 @@
           bun2nix = bun2nix.packages.${system}.default;
           src = ./cli;
           bunNix = ./cli/nix/bun.nix;
+          pluginBundle = default;
         };
       });
 
       apps = eachSystem (system: {
         openmodule = {
           type = "app";
-          program = "${pkgsFor.${system}.callPackage ./cli/nix {
-            bun2nix = bun2nix.packages.${system}.default;
-            src = ./cli;
-            bunNix = ./cli/nix/bun.nix;
-          }}/bin/openmodule";
+          program = "${self.packages.${system}.openmodule}/bin/openmodule";
         };
       });
 

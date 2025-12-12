@@ -5,5 +5,5 @@
  * OpenCode automatically loads the default export as the Plugin.
  */
 
-export { default } from "../../src/index.ts";
+//export { default } from "../../src/index.ts";
 //export { default as BashWrapperPlugin } from "../../packages/bash-wrapper/src/index.ts";

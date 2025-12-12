@@ -24,13 +24,20 @@ export function getBundledPlugin(): { version: string; content: string } | null 
   // Try multiple possible locations for the bundle
   // When running from source: cli/src/cache/ -> need ../../../dist/
   // When running from built CLI: dist/ -> need ../dist/
+  // When installed via Nix: $out/bin/openmodule -> $out/share/openmodules/openmodules.min.js
+  
+  // For Nix-installed binary, use process.execPath to find the installation
+  const execDir = path.dirname(process.execPath);
+  
   const possibleBundlePaths = [
     path.join(__dirname, "..", "..", "..", "dist", "openmodules.bundle.js"), // from cli/src/cache/
     path.join(__dirname, "..", "dist", "openmodules.bundle.js"), // from built cli dist/
+    path.join(execDir, "..", "share", "openmodules", "openmodules.min.js"), // from Nix $out/bin/../share/
   ];
   const possiblePackageJsonPaths = [
     path.join(__dirname, "..", "..", "..", "package.json"), // from cli/src/cache/
     path.join(__dirname, "..", "package.json"), // from built cli dist/
+    null, // Nix bundle has version in header
   ];
 
   for (let i = 0; i < possibleBundlePaths.length; i++) {
@@ -39,6 +46,16 @@ export function getBundledPlugin(): { version: string; content: string } | null 
       const packageJsonPath = possiblePackageJsonPaths[i];
       
       const content = fs.readFileSync(bundlePath, "utf-8");
+      
+      // For Nix bundles, version is already in the header
+      if (packageJsonPath === null) {
+        const match = content.match(/^\/\/ openmodules-plugin v([^\n]+)/);
+        if (match) {
+          return { version: match[1], content };
+        }
+        continue;
+      }
+      
       const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, "utf-8"));
       const version = packageJson.version || "0.0.0";
       
