@@ -3,7 +3,16 @@ import { promises as fs } from "node:fs";
 import path from "node:path";
 import os from "node:os";
 
-import { discoverModules, findModuleFiles, generateFileTree, generateToolName, parseModule, type Module } from "./helpers";
+import {
+  buildContextTriggerMatchers,
+  compileContextTrigger,
+  discoverModules,
+  findModuleFiles,
+  generateFileTree,
+  generateToolName,
+  parseModule,
+  type Module,
+} from "./helpers";
 
 function moduleManifest(name: string, description = "This is a sufficiently long description for testing.") {
   return `name = "${name}"
@@ -106,6 +115,59 @@ describe("modules helpers", () => {
   it("returns fallback tool name when modulePath is invalid", () => {
     const toolName = generateToolName(undefined as unknown as string);
     expect(toolName).toBe("openmodule_unknown");
+  });
+
+  describe("context triggers", () => {
+    const matches = (regexes: RegExp[], text: string) => regexes.some((regex) => regex.test(text));
+
+    it("supports brace expansion and word boundaries", () => {
+      const regexes = compileContextTrigger("docstring{s,}");
+
+      expect(matches(regexes, "Please add a docstring for this function")).toBe(true);
+      expect(matches(regexes, "Multiple docstrings_are needed")).toBe(true);
+      expect(matches(regexes, "docstringing everything")).toBe(false);
+    });
+
+    it("treats wildcards as substring matches", () => {
+      const regexes = compileContextTrigger("docstring*");
+
+      expect(matches(regexes, "docstringing everything")).toBe(true);
+    });
+
+    it("builds matchers that keep triggerless modules visible", () => {
+      const modules: Module[] = [
+        {
+          name: "Docs",
+          directory: "/tmp/docs",
+          toolName: "openmodule_docs",
+          description: "Docs",
+          content: "docs",
+          manifestPath: "/tmp/docs/openmodule.toml",
+          contextTriggers: ["docstring{s,}"],
+        },
+        {
+          name: "AlwaysOn",
+          directory: "/tmp/always",
+          toolName: "openmodule_always",
+          description: "Always on",
+          content: "always",
+          manifestPath: "/tmp/always/openmodule.toml",
+        },
+      ];
+
+      const matchers = buildContextTriggerMatchers(modules);
+      const alwaysVisible = matchers
+        .filter((matcher) => matcher.alwaysVisible)
+        .map((matcher) => matcher.toolName);
+      expect(alwaysVisible).toContain("openmodule_always");
+
+      const text = "Need docstrings for this module";
+      const triggered = matchers
+        .filter((matcher) => matcher.regexes.some((regex) => regex.test(text)))
+        .map((matcher) => matcher.toolName);
+
+      expect(triggered).toContain("openmodule_docs");
+    });
   });
 
   describe("generateFileTree", () => {

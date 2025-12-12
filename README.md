@@ -69,10 +69,12 @@ url = "https://github.com/you"
 
 ### Context Triggers
 
-Modules can specify `context-triggers` - phrases or words that, when detected in the conversation context, make the module "visible" (shown in available tools list). This enables contextual module discovery without cluttering the tool list.
+Modules can specify `context-triggers` - phrases or words that, when detected in the conversation context, make the module "visible" (shown in available tools list). Discovery is progressive: module tools stay hidden until a trigger matches; modules without triggers remain visible.
+
+Trigger patterns use git-style globs (including brace expansion), so `docstring{s,}` matches both `docstring` and `docstrings`. Patterns without wildcards (`*`, `?`, or character classes) only match whole words separated by non-alphanumeric boundaries (spaces, `_`, `-`, punctuation). Add a wildcard when you need substring matching.
 
 ```toml
-context-triggers = [".af file", "affinity designer", "afdesign"]
+context-triggers = [".af file", "affinity designer", "afdesign", "docstring{s,}"]
 ```
 
 ### Prompt File

@@ -7,15 +7,17 @@ import * as path from "path";
  */
 export function getBundledPluginPath(): string | null {
   // Try multiple possible locations for the bundle
-  // When running from source: cli/src/cache/ -> need ../../../dist/
-  // When running from built CLI: dist/ -> need ../dist/
-  // When installed via Nix: $out/bin/openmodule -> $out/share/openmodules/openmodules.min.js
+  // Installed binary: prefer packaged share path to avoid stale local dist
+  // Source checkout: allow local dist overrides when running via ts-node/node
   const execDir = path.dirname(process.execPath);
+  const cwd = process.cwd();
 
   const possiblePaths = [
-    path.join(__dirname, "..", "..", "..", "dist", "openmodules.bundle.js"), // from cli/src/cache/
+    path.join(execDir, "..", "share", "openmodules", "openmodules.min.js"), // from Nix/installed binary
     path.join(__dirname, "..", "dist", "openmodules.bundle.js"), // from built cli dist/
-    path.join(execDir, "..", "share", "openmodules", "openmodules.min.js"), // from Nix
+    path.join(__dirname, "..", "..", "..", "dist", "openmodules.bundle.js"), // from cli/src/cache/
+    path.join(cwd, "dist", "openmodules.bundle.js"), // local build in checkout
+    path.join(cwd, "openmodules.bundle.js"), // fallback if build was output alongside CWD
   ];
 
   for (const p of possiblePaths) {
@@ -26,6 +28,7 @@ export function getBundledPluginPath(): string | null {
 
   return null;
 }
+
 
 /**
  * Install plugin by copying to target directory.
@@ -39,13 +42,17 @@ export function installPlugin(
     return { error: "Could not find bundled plugin. Is the CLI properly installed?" };
   }
 
+  const bundledContent = fs.readFileSync(bundledPath);
   const pluginsDir = path.join(targetDir, ".opencode", "plugin");
   const pluginPath = path.join(pluginsDir, "openmodules.min.js");
 
-  // Check if already exists (unless force)
+  // Reinstall when the bundled plugin differs, or when --force is used
   const exists = fs.existsSync(pluginPath);
   if (exists && !options?.force) {
-    return { installed: false, path: pluginPath };
+    const existingContent = fs.readFileSync(pluginPath);
+    if (existingContent.equals(bundledContent)) {
+      return { installed: false, path: pluginPath };
+    }
   }
 
   // Create plugins directory if needed

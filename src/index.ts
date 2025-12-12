@@ -3,10 +3,11 @@ import { tool } from "@opencode-ai/plugin";
 import os from "os";
 import { join } from "path";
 import {
+    buildContextTriggerMatchers,
     discoverModules,
     generateFileTree,
-    logError,
     getDefaultModulePaths,
+    logError,
 } from "./helpers";
 
 const ModulesPlugin: Plugin = async (input) => {
@@ -18,6 +19,17 @@ const ModulesPlugin: Plugin = async (input) => {
         if (modules.length === 0) {
             return {};
         }
+
+        const triggerMatchers = buildContextTriggerMatchers(modules);
+        const alwaysVisibleTools = new Set(
+            triggerMatchers
+                .filter((matcher) => matcher.alwaysVisible)
+                .map((matcher) => matcher.toolName),
+        );
+        const matchableTriggers = triggerMatchers.filter(
+            (matcher) => matcher.regexes.length > 0,
+        );
+        const sessionTriggers = new Map<string, Set<string>>();
 
         const tools: Record<string, ReturnType<typeof tool>> = {};
 
@@ -61,7 +73,54 @@ const ModulesPlugin: Plugin = async (input) => {
             });
         }
 
-        return { tool: tools };
+        const extractUserText = (
+            parts: { type: string; text?: string; synthetic?: boolean }[] = [],
+        ): string => {
+            return parts
+                .filter((part) => part.type === "text" && (part as any).synthetic !== true)
+                .map((part) =>
+                    "text" in part && typeof part.text === "string" ? part.text : "",
+                )
+                .join("\n");
+        };
+
+        return {
+            tool: tools,
+            async "chat.message"(hookInput, output) {
+                const sessionID = hookInput.sessionID;
+                const active = sessionTriggers.get(sessionID) ?? new Set(alwaysVisibleTools);
+
+                for (const toolName of alwaysVisibleTools) {
+                    active.add(toolName);
+                }
+
+                const text = extractUserText(output.parts as any);
+                if (text.trim()) {
+                    for (const matcher of matchableTriggers) {
+                        if (matcher.regexes.some((regex) => regex.test(text))) {
+                            active.add(matcher.toolName);
+                        }
+                    }
+                }
+
+                const message: any = output.message;
+                const toolsConfig = { ...(message.tools ?? {}) };
+
+                // Default to hidden for all OpenModule tools unless explicitly re-enabled below
+                toolsConfig["openmodule_*"] = toolsConfig["openmodule_*"] ?? false;
+                for (const toolName of Object.keys(tools)) {
+                    toolsConfig[toolName] = false;
+                }
+
+                for (const toolName of active) {
+                    toolsConfig[toolName] = true;
+                }
+
+                message.tools = toolsConfig;
+                sessionTriggers.set(sessionID, active);
+            },
+        };
+
     } catch (error) {
         logError("Failed to initialize modules plugin:", error);
         return {};

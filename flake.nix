@@ -35,18 +35,23 @@
     in
     {
       packages = eachSystem (system: rec {
-        default = pkgsFor.${system}.callPackage ./nix {
+        # Plugin bundle (minified JS)
+        openmodules-bundle = pkgsFor.${system}.callPackage ./nix {
           bun2nix = bun2nix.packages.${system}.default;
           src = ./.;
           bunNix = ./nix/bun.nix;
         };
 
+        # CLI that depends on the bundled plugin
         openmodule = pkgsFor.${system}.callPackage ./cli/nix {
           bun2nix = bun2nix.packages.${system}.default;
           src = ./cli;
           bunNix = ./cli/nix/bun.nix;
-          pluginBundle = default;
+          pluginBundle = openmodules-bundle;
         };
+
+        # Default package should be the CLI, not the raw bundle
+        default = openmodule;
       });
 
       apps = eachSystem (system: {
@@ -62,7 +67,6 @@
             pkgsFor.${system}.bun
             pkgsFor.${system}.nodejs
             bun2nix.packages.${system}.default
-            self.packages.${system}.openmodule
           ];
 
           shellHook = ''
