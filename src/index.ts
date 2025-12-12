@@ -24,8 +24,11 @@ const ModulesPlugin: Plugin = async (input) => {
         for (const module of modules) {
             if (!module.toolName) continue;
 
+            // Include human-readable name in description for agent visibility
+            const toolDescription = `${module.name}: ${module.description}`;
+
             tools[module.toolName] = tool({
-                description: module.description,
+                description: toolDescription,
                 args: {},
                 async execute(_, toolCtx) {
                     const sendSilentPrompt = async (text: string) => {
