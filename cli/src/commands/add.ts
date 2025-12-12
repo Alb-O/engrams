@@ -30,8 +30,13 @@ export const add = command({
       short: "c",
       description: "Clone instead of adding as submodule (default in git repos is submodule)",
     }),
+    force: flag({
+      long: "force",
+      short: "f",
+      description: "Force add, removing existing module if present",
+    }),
   },
-  handler: async ({ repo, name, global: isGlobal, clone }) => {
+  handler: async ({ repo, name, global: isGlobal, clone, force }) => {
     const parsed = parseRepoUrl(repo);
     if (!parsed) {
       console.error(pc.red(`Error: Invalid repository format: ${repo}`));
@@ -56,9 +61,56 @@ export const add = command({
       targetDir = path.join(paths.local!, moduleName);
     }
 
-    // Check if already exists
-    if (fs.existsSync(targetDir)) {
+    // Force clean any existing submodule state (handles broken/partial submodules)
+    if (force && !isGlobal && projectRoot) {
+      const relativePath = path.relative(projectRoot, targetDir);
+      try {
+        // Deinit if registered (ignore errors)
+        execSync(`git submodule deinit -f ${relativePath}`, {
+          cwd: projectRoot,
+          stdio: "pipe",
+        });
+      } catch {
+        // Ignore - may not be initialized
+      }
+      try {
+        // Remove from index (ignore errors)
+        execSync(`git rm -f ${relativePath}`, {
+          cwd: projectRoot,
+          stdio: "pipe",
+        });
+      } catch {
+        // Ignore - may not be in index
+      }
+      // Find the actual git dir (handles nested submodules)
+      let gitDir: string;
+      const dotGitPath = path.join(projectRoot, ".git");
+      if (fs.existsSync(dotGitPath) && fs.statSync(dotGitPath).isFile()) {
+        // This repo is itself a submodule - .git is a file pointing to the real location
+        const gitFileContent = fs.readFileSync(dotGitPath, "utf-8").trim();
+        const match = gitFileContent.match(/^gitdir:\s*(.+)$/);
+        if (match) {
+          gitDir = path.resolve(projectRoot, match[1]);
+        } else {
+          gitDir = dotGitPath;
+        }
+      } else {
+        gitDir = dotGitPath;
+      }
+      // Clean up modules directory
+      const gitModulesPath = path.join(gitDir, "modules", relativePath);
+      if (fs.existsSync(gitModulesPath)) {
+        fs.rmSync(gitModulesPath, { recursive: true, force: true });
+      }
+      // Remove directory if exists
+      if (fs.existsSync(targetDir)) {
+        fs.rmSync(targetDir, { recursive: true, force: true });
+      }
+      console.log(pc.yellow(`Cleaned up existing module state for ${moduleName}`));
+    } else if (fs.existsSync(targetDir)) {
+      // Check if already exists (non-force mode)
       console.error(pc.red(`Error: Module already exists at ${targetDir}`));
+      console.error(pc.dim("Use --force to overwrite"));
       process.exit(1);
     }
 
@@ -73,10 +125,21 @@ export const add = command({
     try {
       if (!clone && !isGlobal) {
         // Add as submodule (default for local installs in git repos)
-        execSync(`git submodule add ${parsed.url} ${path.relative(projectRoot!, targetDir)}`, {
+        const relativePath = path.relative(projectRoot!, targetDir);
+        const forceFlag = force ? "--force " : "";
+        execSync(`git submodule add ${forceFlag}${parsed.url} ${relativePath}`, {
           cwd: projectRoot!,
           stdio: "inherit",
         });
+        // Initialize and update the submodule
+        try {
+          execSync(`git submodule update --init ${relativePath}`, {
+            cwd: projectRoot!,
+            stdio: "pipe",
+          });
+        } catch {
+          // May fail if repo has no commits yet, that's ok
+        }
         console.log(pc.green(`✓ Added as submodule: ${targetDir}`));
       } else {
         // Clone directly (for global or when --clone is specified)
