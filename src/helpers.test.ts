@@ -51,7 +51,7 @@ describe("modules helpers", () => {
 
     expect(parsed?.name).toBe("demo-module");
     expect(parsed?.directory).toBe(moduleDir);
-    expect(parsed?.toolName).toBe("modules_demo_module");
+    expect(parsed?.toolName).toBe("openmodule_demo_module");
     expect(parsed?.content).toContain("Body of the module.");
   });
 
@@ -77,14 +77,14 @@ describe("modules helpers", () => {
     await createModule(path.join(projectDir, sharedName), sharedName, "Project description is even longer for testing.");
 
     const modules = await discoverModules([configDir, projectDir]);
-    expect(modules.map((s) => s.toolName)).toEqual(["modules_shared_module", "modules_shared_module"]);
+    expect(modules.map((s) => s.toolName)).toEqual(["openmodule_shared_module", "openmodule_shared_module"]);
 
     const toolDescriptions = modules.reduce<Record<string, Module>>((acc, module) => {
       acc[module.toolName] = module;
       return acc;
     }, {});
 
-    expect(toolDescriptions["modules_shared_module"].directory).toBe(path.join(projectDir, sharedName));
+    expect(toolDescriptions["openmodule_shared_module"].directory).toBe(path.join(projectDir, sharedName));
   });
 
   it("generates tool names by flattening directories with underscores", () => {
@@ -92,7 +92,7 @@ describe("modules helpers", () => {
     const manifestPath = path.join(baseDir, "docs", "api-guides", "openmodule.toml");
     const toolName = generateToolName(manifestPath, baseDir);
 
-    expect(toolName).toBe("modules_docs_api_guides");
+    expect(toolName).toBe("openmodule_docs_api_guides");
   });
 
   it("handles missing baseDir when generating tool names", () => {
@@ -100,12 +100,12 @@ describe("modules helpers", () => {
     const manifestPath = path.join(baseDir, "solo", "openmodule.toml");
     const toolName = generateToolName(manifestPath);
 
-    expect(toolName).toBe("modules_solo");
+    expect(toolName).toBe("openmodule_solo");
   });
 
   it("returns fallback tool name when modulePath is invalid", () => {
     const toolName = generateToolName(undefined as unknown as string);
-    expect(toolName).toBe("modules_unknown");
+    expect(toolName).toBe("openmodule_unknown");
   });
 
   describe("generateFileTree", () => {

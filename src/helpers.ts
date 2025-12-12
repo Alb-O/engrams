@@ -74,9 +74,9 @@ function logManifestErrors(
 export function generateToolName(modulePath: string, baseDir?: string): string {
     if (typeof modulePath !== "string" || modulePath.length === 0) {
         logWarning(
-            "Received invalid module path while generating tool name; defaulting to modules_unknown.",
+            "Received invalid module path while generating tool name; defaulting to openmodule_unknown.",
         );
-        return "modules_unknown";
+        return "openmodule_unknown";
     }
 
     const safeBase =
@@ -88,11 +88,11 @@ export function generateToolName(modulePath: string, baseDir?: string): string {
 
     if (dirPath === "." || dirPath === "") {
         const folder = basename(dirname(modulePath));
-        return `modules_${folder.replace(/-/g, "_")}`;
+        return `openmodule_${folder.replace(/-/g, "_")}`;
     }
 
     const components = dirPath.split(sep).filter((part) => part !== ".");
-    return `modules_${components.join("_").replace(/-/g, "_")}`;
+    return `openmodule_${components.join("_").replace(/-/g, "_")}`;
 }
 
 /**
