@@ -28,13 +28,7 @@ const MANIFEST_FILENAME = "openmodule.toml";
 const DEFAULT_PROMPT_PATH = "README.md";
 
 const ModuleManifestSchema = z.object({
-    name: z
-        .string()
-        .regex(
-            /^[a-z0-9-]+$/,
-            "Name must be lowercase alphanumeric with hyphens",
-        )
-        .min(1, "Name cannot be empty"),
+    name: z.string().min(1, "Name cannot be empty"),
     description: z
         .string()
         .min(
