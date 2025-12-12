@@ -168,6 +168,150 @@ describe("modules helpers", () => {
 
       expect(triggered).toContain("openmodule_docs");
     });
+
+    it("builds matchers with matchAiMessages flag", () => {
+      const modules: Module[] = [
+        {
+          name: "FileDetector",
+          directory: "/tmp/file-detector",
+          toolName: "openmodule_file_detector",
+          description: "Detects file types from AI output",
+          content: "detector",
+          manifestPath: "/tmp/file-detector/openmodule.toml",
+          contextTriggers: [".afdesign", ".af file"],
+          matchAiMessages: true,
+        },
+        {
+          name: "UserOnly",
+          directory: "/tmp/user-only",
+          toolName: "openmodule_user_only",
+          description: "Only triggers on user messages",
+          content: "user only",
+          manifestPath: "/tmp/user-only/openmodule.toml",
+          contextTriggers: ["help me"],
+        },
+      ];
+
+      const matchers = buildContextTriggerMatchers(modules);
+
+      const fileDetector = matchers.find((m) => m.toolName === "openmodule_file_detector");
+      const userOnly = matchers.find((m) => m.toolName === "openmodule_user_only");
+
+      expect(fileDetector?.matchAiMessages).toBe(true);
+      expect(userOnly?.matchAiMessages).toBe(false);
+    });
+
+    it("matchAiMessages controls which text source is matched", () => {
+      // Simulate the hook logic: user-only matcher uses userText, AI matcher uses allText
+      const modules: Module[] = [
+        {
+          name: "AIAware",
+          directory: "/tmp/ai-aware",
+          toolName: "openmodule_ai_aware",
+          description: "Triggers on AI output too",
+          content: "ai aware",
+          manifestPath: "/tmp/ai-aware/openmodule.toml",
+          contextTriggers: ["detected pattern"],
+          matchAiMessages: true,
+        },
+        {
+          name: "UserOnly",
+          directory: "/tmp/user-only",
+          toolName: "openmodule_user_only",
+          description: "Only triggers on user messages",
+          content: "user only",
+          manifestPath: "/tmp/user-only/openmodule.toml",
+          contextTriggers: ["detected pattern"],
+          matchAiMessages: false,
+        },
+      ];
+
+      const matchers = buildContextTriggerMatchers(modules);
+
+      // Simulate message parts: user text is non-synthetic, AI text is synthetic
+      const parts = [
+        { type: "text", text: "What files do you see?", synthetic: false }, // user
+        { type: "text", text: "I found a detected pattern in the output", synthetic: true }, // AI
+      ];
+
+      // Extract text like the hook does
+      const userText = parts
+        .filter((p) => p.type === "text" && !p.synthetic)
+        .map((p) => p.text)
+        .join("\n");
+
+      const allText = parts
+        .filter((p) => p.type === "text")
+        .map((p) => p.text)
+        .join("\n");
+
+      // Check which matchers would trigger based on their matchAiMessages setting
+      const triggered = new Set<string>();
+      for (const matcher of matchers) {
+        const textToMatch = matcher.matchAiMessages ? allText : userText;
+        if (matcher.regexes.some((regex) => regex.test(textToMatch))) {
+          triggered.add(matcher.toolName);
+        }
+      }
+
+      // AI-aware module should trigger (pattern is in allText)
+      expect(triggered.has("openmodule_ai_aware")).toBe(true);
+      // User-only module should NOT trigger (pattern is not in userText)
+      expect(triggered.has("openmodule_user_only")).toBe(false);
+    });
+
+    it("both matchers trigger when pattern is in user text", () => {
+      const modules: Module[] = [
+        {
+          name: "AIAware",
+          directory: "/tmp/ai-aware",
+          toolName: "openmodule_ai_aware",
+          description: "Triggers on AI output too",
+          content: "ai aware",
+          manifestPath: "/tmp/ai-aware/openmodule.toml",
+          contextTriggers: ["user phrase"],
+          matchAiMessages: true,
+        },
+        {
+          name: "UserOnly",
+          directory: "/tmp/user-only",
+          toolName: "openmodule_user_only",
+          description: "Only triggers on user messages",
+          content: "user only",
+          manifestPath: "/tmp/user-only/openmodule.toml",
+          contextTriggers: ["user phrase"],
+          matchAiMessages: false,
+        },
+      ];
+
+      const matchers = buildContextTriggerMatchers(modules);
+
+      const parts = [
+        { type: "text", text: "Please handle this user phrase for me", synthetic: false },
+      ];
+
+      const userText = parts
+        .filter((p) => p.type === "text" && !p.synthetic)
+        .map((p) => p.text)
+        .join("\n");
+
+      const allText = parts
+        .filter((p) => p.type === "text")
+        .map((p) => p.text)
+        .join("\n");
+
+      const triggered = new Set<string>();
+      for (const matcher of matchers) {
+        const textToMatch = matcher.matchAiMessages ? allText : userText;
+        if (matcher.regexes.some((regex) => regex.test(textToMatch))) {
+          triggered.add(matcher.toolName);
+        }
+      }
+
+      // Both should trigger since pattern is in user text (which is subset of allText)
+      expect(triggered.has("openmodule_ai_aware")).toBe(true);
+      expect(triggered.has("openmodule_user_only")).toBe(true);
+    });
   });
 
   describe("generateFileTree", () => {

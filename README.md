@@ -77,6 +77,13 @@ Trigger patterns use git-style globs (including brace expansion), so `docstring{
 context-triggers = [".af file", "affinity designer", "afdesign", "docstring{s,}"]
 ```
 
+By default, triggers only match user messages. Set `match-ai-messages = true` to also match AI responses and tool output. This is useful for file-type detection modules where seeing extensions in directory listings or AI analysis should activate the module:
+
+```toml
+context-triggers = [".afdesign", "affinity designer"]
+match-ai-messages = true
+```
+
 ### Prompt File
 
 By default, `README.md` at the module root is injected into the agent context when the module is invoked. Override this with the `prompt` field in the manifest:

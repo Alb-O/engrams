@@ -84,6 +84,17 @@ const ModulesPlugin: Plugin = async (input) => {
                 .join("\n");
         };
 
+        const extractAllText = (
+            parts: { type: string; text?: string }[] = [],
+        ): string => {
+            return parts
+                .filter((part) => part.type === "text")
+                .map((part) =>
+                    "text" in part && typeof part.text === "string" ? part.text : "",
+                )
+                .join("\n");
+        };
+
         return {
             tool: tools,
             async "chat.message"(hookInput, output) {
@@ -94,12 +105,14 @@ const ModulesPlugin: Plugin = async (input) => {
                     active.add(toolName);
                 }
 
-                const text = extractUserText(output.parts as any);
-                if (text.trim()) {
-                    for (const matcher of matchableTriggers) {
-                        if (matcher.regexes.some((regex) => regex.test(text))) {
-                            active.add(matcher.toolName);
-                        }
+                const userText = extractUserText(output.parts as any);
+                const allText = extractAllText(output.parts as any);
+
+                for (const matcher of matchableTriggers) {
+                    // Use allText (includes AI) only if matchAiMessages is true, otherwise userText only
+                    const textToMatch = matcher.matchAiMessages ? allText : userText;
+                    if (textToMatch.trim() && matcher.regexes.some((regex) => regex.test(textToMatch))) {
+                        active.add(matcher.toolName);
                     }
                 }
 

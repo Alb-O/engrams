@@ -20,6 +20,8 @@ export interface Module {
     manifestPath: string;
     /** Phrases/words that trigger module visibility when they appear in context */
     contextTriggers?: string[];
+    /** Whether to also match triggers in AI messages (default: false, user messages only) */
+    matchAiMessages?: boolean;
 }
 
 /** Compiled matcher derived from a module's context-triggers */
@@ -27,6 +29,8 @@ export interface ContextTriggerMatcher {
     toolName: string;
     regexes: RegExp[];
     alwaysVisible: boolean;
+    /** Whether to also match triggers in AI messages (default: false) */
+    matchAiMessages: boolean;
 }
 
 const WILDCARD_PATTERN = /[*?\[]/;
@@ -156,6 +160,7 @@ export function buildContextTriggerMatchers(modules: Module[]): ContextTriggerMa
             toolName: module.toolName,
             regexes,
             alwaysVisible: !(module.contextTriggers && module.contextTriggers.length > 0),
+            matchAiMessages: module.matchAiMessages ?? false,
         };
     });
 }
@@ -179,6 +184,8 @@ const ModuleManifestSchema = z.object({
     prompt: z.string().optional(),
     /** Phrases/words that trigger module visibility when they appear in context */
     "context-triggers": z.array(z.string()).optional(),
+    /** Whether to also match triggers in AI messages (default: false, user messages only) */
+    "match-ai-messages": z.boolean().optional(),
     "allowed-tools": z.array(z.string()).optional(),
     metadata: z.record(z.string(), z.string()).optional(),
     author: z
@@ -282,6 +289,7 @@ export async function parseModule(
             description: parsed.data.description,
             allowedTools: parsed.data["allowed-tools"],
             contextTriggers: parsed.data["context-triggers"],
+            matchAiMessages: parsed.data["match-ai-messages"],
             metadata: parsed.data.metadata,
             license: parsed.data.license,
             content: promptContent.trim(),
