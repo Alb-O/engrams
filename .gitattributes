@@ -1,1 +1,2 @@
 *.min.* linguist-generated=true
+*.lock linguist-generated=true

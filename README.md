@@ -160,8 +160,8 @@ parent-module/
 Nested modules follow a strict visibility constraint: **a child module is only visible when its parent module is visible**. This creates a natural progressive discovery flow:
 
 1. Parent module becomes visible (via trigger match or always-visible)
-2. Child modules can now become visible (via their own triggers or always-visible)
-3. Grandchildren require both parent and grandparent to be visible, etc.
+1. Child modules can now become visible (via their own triggers or always-visible)
+1. Grandchildren require both parent and grandparent to be visible, etc.
 
 This prevents child modules from appearing in isolation without their parent context.
 
