@@ -228,9 +228,11 @@ export const list = command({
       ]);
     };
 
+    let printedSection = false;
+
     if (globalModules.length > 0 && !localOnly) {
       console.log(
-        pc.bold("\n🌐 Global modules") +
+        pc.bold("🌐 Global modules") +
           pc.dim(` (${paths.global})`) +
           pc.dim(` — ${totalGlobal} module${totalGlobal === 1 ? "" : "s"}`)
       );
@@ -243,11 +245,13 @@ export const list = command({
       } else {
         printModuleTree(globalModules);
       }
+      printedSection = true;
     }
 
     if (localModules.length > 0 && !globalOnly) {
+      if (printedSection) console.log("");
       console.log(
-        pc.bold("\n📁 Local modules") +
+        pc.bold("📁 Local modules") +
           pc.dim(` (${paths.local})`) +
           pc.dim(` — ${totalLocal} module${totalLocal === 1 ? "" : "s"}`)
       );
@@ -261,7 +265,5 @@ export const list = command({
         printModuleTree(localModules);
       }
     }
-
-    console.log("");
   },
 });
