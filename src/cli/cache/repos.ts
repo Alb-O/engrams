@@ -1,7 +1,5 @@
 import * as fs from "fs";
 import * as path from "path";
-import * as crypto from "crypto";
-import { execSync, spawnSync } from "child_process";
 import pc from "picocolors";
 import { getCacheDir, getDirSize } from "./index";
 
@@ -9,24 +7,44 @@ import { getCacheDir, getDirSize } from "./index";
  * Run a git command and return stdout, or null if it fails.
  */
 function git(args: string[], cwd: string): string | null {
-  const result = spawnSync("git", args, {
+  const result = Bun.spawnSync(["git", ...args], {
     cwd,
-    encoding: "utf-8",
-    stdio: ["pipe", "pipe", "pipe"],
+    stdout: "pipe",
+    stderr: "pipe",
   });
-  if (result.status !== 0) return null;
-  return (result.stdout as string).trim();
+  if (!result.success) return null;
+  return result.stdout.toString().trim();
 }
 
 /**
  * Run a git command and return success/failure.
  */
 function gitOk(args: string[], cwd: string): boolean {
-  const result = spawnSync("git", args, {
+  const result = Bun.spawnSync(["git", ...args], {
     cwd,
-    stdio: ["pipe", "pipe", "pipe"],
+    stdout: "pipe",
+    stderr: "pipe",
   });
-  return result.status === 0;
+  return result.success;
+}
+
+/**
+ * Run a git command, throwing on failure with error message.
+ */
+function gitExec(
+  args: string[],
+  options: { cwd?: string; quiet?: boolean } = {},
+): void {
+  const { cwd, quiet = false } = options;
+  const result = Bun.spawnSync(["git", ...args], {
+    cwd,
+    stdout: quiet ? "pipe" : "inherit",
+    stderr: quiet ? "pipe" : "inherit",
+  });
+  if (!result.success) {
+    const errorMsg = result.stderr.toString().trim() || "Unknown error";
+    throw new Error(`git ${args[0]} failed:\n  ${errorMsg}`);
+  }
 }
 
 /**
@@ -40,8 +58,7 @@ export function urlToCachePath(url: string): string {
   );
   if (!match) {
     // Fallback to hash-based path for unusual URLs
-    const hash = crypto
-      .createHash("sha256")
+    const hash = new Bun.CryptoHasher("sha256")
       .update(url)
       .digest("hex")
       .slice(0, 16);
@@ -75,24 +92,20 @@ export function ensureCached(
   options?: { quiet?: boolean },
 ): string {
   const cachePath = urlToCachePath(url);
-  const quiet = options?.quiet
-    ? { stdio: "pipe" as const }
-    : { stdio: "inherit" as const };
+  const quiet = options?.quiet ?? false;
 
   if (fs.existsSync(cachePath)) {
     // Update existing cache
-    try {
-      execSync(`git fetch --all --prune`, {
-        cwd: cachePath,
-        ...quiet,
-      });
-    } catch (error) {
+    const result = Bun.spawnSync(["git", "fetch", "--all", "--prune"], {
+      cwd: cachePath,
+      stdout: quiet ? "pipe" : "inherit",
+      stderr: quiet ? "pipe" : "inherit",
+    });
+    if (!result.success) {
       // Fetch failed - warn but continue with stale cache
-      const err = error as { stderr?: Buffer; message?: string };
-      const errorMsg =
-        err?.stderr?.toString() || err?.message || "Unknown error";
+      const errorMsg = result.stderr.toString().trim() || "Unknown error";
       console.warn(pc.yellow(`Warning: Failed to update cache for ${url}`));
-      console.warn(pc.dim(`  ${errorMsg.trim()}`));
+      console.warn(pc.dim(`  ${errorMsg}`));
       console.warn(pc.dim("  Using potentially stale cached version"));
     }
   } else {
@@ -101,15 +114,13 @@ export function ensureCached(
     if (!fs.existsSync(parentDir)) {
       fs.mkdirSync(parentDir, { recursive: true });
     }
-    try {
-      execSync(`git clone --bare ${url} ${cachePath}`, quiet);
-    } catch (error) {
-      const err = error as { stderr?: Buffer; message?: string };
-      const errorMsg =
-        err?.stderr?.toString() || err?.message || "Unknown error";
-      throw new Error(
-        `Failed to clone ${url} into cache:\n  ${errorMsg.trim()}`,
-      );
+    const result = Bun.spawnSync(["git", "clone", "--bare", url, cachePath], {
+      stdout: quiet ? "pipe" : "inherit",
+      stderr: quiet ? "pipe" : "inherit",
+    });
+    if (!result.success) {
+      const errorMsg = result.stderr.toString().trim() || "Unknown error";
+      throw new Error(`Failed to clone ${url} into cache:\n  ${errorMsg}`);
     }
   }
 
@@ -125,11 +136,9 @@ export function cloneFromCache(
   options?: { quiet?: boolean },
 ): void {
   const cachePath = ensureCached(url, options);
-  const quiet = options?.quiet
-    ? { stdio: "pipe" as const }
-    : { stdio: "inherit" as const };
-
-  execSync(`git clone --reference ${cachePath} ${url} ${targetDir}`, quiet);
+  gitExec(["clone", "--reference", cachePath, url, targetDir], {
+    quiet: options?.quiet,
+  });
 }
 
 /**
@@ -142,18 +151,11 @@ export function submoduleAddFromCache(
   options?: { quiet?: boolean; force?: boolean },
 ): void {
   const cachePath = ensureCached(url, options);
-  const quiet = options?.quiet
-    ? { stdio: "pipe" as const }
-    : { stdio: "inherit" as const };
-  const forceFlag = options?.force ? "--force " : "";
+  const args = ["submodule", "add"];
+  if (options?.force) args.push("--force");
+  args.push("--reference", cachePath, url, relativePath);
 
-  execSync(
-    `git submodule add ${forceFlag}--reference ${cachePath} ${url} ${relativePath}`,
-    {
-      cwd: projectRoot,
-      ...quiet,
-    },
-  );
+  gitExec(args, { cwd: projectRoot, quiet: options?.quiet });
 
   // Initialize the submodule - may fail if repo has unusual state, that's ok
   gitOk(["submodule", "update", "--init", relativePath], projectRoot);
@@ -245,57 +247,62 @@ export function cloneWithSparseCheckout(
   options: SparseCloneOptions = {},
 ): void {
   const { ref, sparse, noCache = false, quiet = false } = options;
-  const stdio = quiet ? ("pipe" as const) : ("inherit" as const);
 
-  // Build base clone command
+  // Build clone args
   const needsDelayedCheckout = (sparse && sparse.length > 0) || ref;
-  const checkoutFlag = needsDelayedCheckout ? "--no-checkout" : "";
-  // Use blobless clone for efficiency with sparse checkout
-  const filterFlag = "--filter=blob:none";
-  // Don't use --depth with --reference as it can cause issues
-  const branchFlag =
-    ref && !ref.match(/^[0-9a-f]{40}$/i) ? `-b ${ref}` : "";
+  const cloneArgs = ["clone", "--filter=blob:none"];
 
-  let cloneCmd: string;
+  if (needsDelayedCheckout) {
+    cloneArgs.push("--no-checkout");
+  }
+
+  // Add branch flag if ref is not a commit hash
+  if (ref && !ref.match(/^[0-9a-f]{40}$/i)) {
+    cloneArgs.push("-b", ref);
+  }
 
   if (noCache) {
     // Direct clone without cache
-    const depthFlag = ref ? "" : "--depth 1";
-    cloneCmd =
-      `git clone ${filterFlag} ${depthFlag} ${checkoutFlag} ${branchFlag} ${url} ${targetDir}`
-        .replace(/\s+/g, " ")
-        .trim();
+    if (!ref) {
+      cloneArgs.push("--depth", "1");
+    }
   } else {
     // Clone using cache as reference for object sharing
     const cachePath = ensureCached(url, { quiet });
-    cloneCmd =
-      `git clone ${filterFlag} ${checkoutFlag} ${branchFlag} --reference ${cachePath} ${url} ${targetDir}`
-        .replace(/\s+/g, " ")
-        .trim();
+    cloneArgs.push("--reference", cachePath);
   }
 
-  execSync(cloneCmd, { stdio });
+  cloneArgs.push(url, targetDir);
+  gitExec(cloneArgs, { quiet });
 
   // Configure sparse-checkout if patterns provided
   if (sparse && sparse.length > 0) {
-    execSync(`git sparse-checkout init`, { cwd: targetDir, stdio: "pipe" });
-    execSync(
+    gitExec(["sparse-checkout", "init"], { cwd: targetDir, quiet: true });
+
+    // Use shell for glob pattern handling
+    const sparseSetArgs = [
+      "-c",
       `git sparse-checkout set --no-cone ${sparse.map((p) => `'${p}'`).join(" ")}`,
-      {
-        cwd: targetDir,
-        stdio: "pipe",
-        shell: "/bin/sh",
-      },
-    );
+    ];
+    const result = Bun.spawnSync(["sh", ...sparseSetArgs], {
+      cwd: targetDir,
+      stdout: "pipe",
+      stderr: "pipe",
+    });
+    if (!result.success) {
+      throw new Error(
+        `Failed to set sparse-checkout patterns:\n  ${result.stderr.toString().trim()}`,
+      );
+    }
   }
 
   // Checkout specific ref if needed
   if (needsDelayedCheckout) {
     const checkoutRef = ref || "HEAD";
     // Suppress detached HEAD warning when checking out a specific commit
-    execSync(`git -c advice.detachedHead=false checkout ${checkoutRef}`, {
-      cwd: targetDir,
-      stdio,
-    });
+    gitExec(
+      ["-c", "advice.detachedHead=false", "checkout", checkoutRef],
+      { cwd: targetDir, quiet },
+    );
   }
 }

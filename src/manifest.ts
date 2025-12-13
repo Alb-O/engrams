@@ -1,5 +1,4 @@
 import * as TOML from "@iarna/toml";
-import { promises as fs } from "fs";
 import { basename, dirname, join, relative, sep } from "path";
 import { z } from "zod";
 import type { Engram, TriggerConfig } from "./types";
@@ -141,7 +140,12 @@ export async function parseEngram(
   const engramDirectory = dirname(manifestPath);
 
   try {
-    const manifestRaw = await fs.readFile(manifestPath, "utf8");
+    const manifestFile = Bun.file(manifestPath);
+    if (!(await manifestFile.exists())) {
+      logWarning("Manifest file not found:", manifestPath);
+      return null;
+    }
+    const manifestRaw = await manifestFile.text();
     const manifestData = TOML.parse(manifestRaw);
     const parsed = EngramManifestSchema.safeParse(manifestData);
 
@@ -155,13 +159,10 @@ export async function parseEngram(
     const promptPath = join(engramDirectory, promptRelativePath);
 
     let promptContent = "";
-    try {
-      promptContent = await fs.readFile(promptPath, "utf8");
-    } catch (error) {
-      const code = (error as NodeJS.ErrnoException).code;
-      if (code !== "ENOENT") {
-        throw error;
-      }
+    const promptFile = Bun.file(promptPath);
+    if (await promptFile.exists()) {
+      promptContent = await promptFile.text();
+    } else {
       logWarning(`Missing prompt file: ${promptPath}`);
     }
 

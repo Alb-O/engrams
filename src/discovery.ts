@@ -1,7 +1,6 @@
 import os from "os";
 import { promises as fs, existsSync, Dirent } from "fs";
 import { dirname, join, sep } from "path";
-import { spawnSync } from "child_process";
 import type { Engram } from "./types";
 import { logWarning } from "./logging";
 import { MANIFEST_FILENAME, parseEngram, generateToolName } from "./manifest";
@@ -10,13 +9,13 @@ import { MANIFEST_FILENAME, parseEngram, generateToolName } from "./manifest";
  * Run a git command and return stdout, or null if it fails.
  */
 function git(args: string[], cwd: string): string | null {
-  const result = spawnSync("git", args, {
+  const result = Bun.spawnSync(["git", ...args], {
     cwd,
-    encoding: "utf-8",
-    stdio: ["pipe", "pipe", "pipe"],
+    stdout: "pipe",
+    stderr: "pipe",
   });
-  if (result.status !== 0) return null;
-  return (result.stdout as string).trim();
+  if (!result.success) return null;
+  return result.stdout.toString().trim();
 }
 
 /**
