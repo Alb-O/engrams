@@ -31,10 +31,19 @@ function parseModuleToml(tomlPath: string): {
   try {
     const content = fs.readFileSync(tomlPath, "utf-8");
     const parsed = TOML.parse(content) as any;
+    // Convert hyphenated TOML keys to camelCase
+    const rawTriggers = parsed.triggers;
+    const triggers = rawTriggers
+      ? {
+          anyMsg: rawTriggers["any-msg"],
+          userMsg: rawTriggers["user-msg"],
+          agentMsg: rawTriggers["agent-msg"],
+        }
+      : undefined;
     return {
       name: parsed.name,
       description: parsed.description,
-      triggers: parsed.triggers,
+      triggers,
     };
   } catch (err: any) {
     return {
@@ -92,15 +101,15 @@ function scanModulesRecursive(
 }
 
 function getTriggerSummary(triggers?: ModuleInfo["triggers"]): string {
-  if (!triggers) return "";
-
-  const parts: string[] = [];
-  const anyCount = triggers.anyMsg?.length || 0;
-  const userCount = triggers.userMsg?.length || 0;
-  const agentCount = triggers.agentMsg?.length || 0;
+  const anyCount = triggers?.anyMsg?.length || 0;
+  const userCount = triggers?.userMsg?.length || 0;
+  const agentCount = triggers?.agentMsg?.length || 0;
   const total = anyCount + userCount + agentCount;
 
+  // No triggers defined = always visible
   if (total === 0) return pc.green("always visible");
+
+  const parts: string[] = [];
 
   if (anyCount > 0) parts.push(`${anyCount} any`);
   if (userCount > 0) parts.push(`${userCount} user`);
