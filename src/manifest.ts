@@ -39,6 +39,8 @@ const EngramManifestSchema = z.object({
       ref: z.string().optional(),
       /** Sparse-checkout patterns (glob patterns for files to include) */
       sparse: z.array(z.string()).optional(),
+      /** Lock to exact commit for reproducibility (captured in index on sync) */
+      lock: z.boolean().optional(),
     })
     .optional(),
   /**

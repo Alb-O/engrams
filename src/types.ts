@@ -34,6 +34,8 @@ export interface Engram {
     ref?: string;
     /** Sparse-checkout patterns */
     sparse?: string[];
+    /** Lock to exact commit for reproducibility */
+    lock?: boolean;
   };
   /**
    * Manual oneliners for files/directories (relative paths from engram root).

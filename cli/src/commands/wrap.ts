@@ -49,6 +49,7 @@ interface WrapConfig {
   remote: string;
   ref?: string;
   sparse: string[];
+  lock?: boolean;
 }
 
 /**
@@ -75,6 +76,9 @@ function generateManifest(
     if (wrap.sparse.length > 0) {
       const patternList = wrap.sparse.map(p => `"${p}"`).join(", ");
       lines.push(`sparse = [${patternList}]`);
+    }
+    if (wrap.lock) {
+      lines.push(`lock = true`);
     }
   }
 
@@ -203,8 +207,12 @@ export const wrap = command({
       long: "no-cache",
       description: "Skip repo cache and clone directly from remote",
     }),
+    lock: flag({
+      long: "lock",
+      description: "Lock to exact commit for reproducibility (captured in index on sync)",
+    }),
   },
-  handler: async ({ source, name, engramName, description, ref, sparse, triggers, global: isGlobal, lazy, force, noCache }) => {
+  handler: async ({ source, name, engramName, description, ref, sparse, triggers, global: isGlobal, lazy, force, noCache, lock }) => {
     const projectRoot = findProjectRoot();
     const paths = getModulePaths(projectRoot || undefined);
 
@@ -327,7 +335,7 @@ export const wrap = command({
 
     // Build wrap config for remote repos
     const wrapConfig: WrapConfig | undefined = isRemote
-      ? { remote: parsed!.url, ref, sparse }
+      ? { remote: parsed!.url, ref, sparse, lock: lock || undefined }
       : undefined;
 
     // Write manifest

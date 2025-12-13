@@ -28,8 +28,8 @@ export interface EngramIndexEntry {
     remote: string;
     /** Requested ref (branch, tag) - what user asked for */
     ref?: string;
-    /** Locked commit SHA - exact revision for reproducibility */
-    locked: string;
+    /** Locked commit SHA - only present if lock=true in manifest */
+    locked?: string;
     /** Sparse-checkout patterns */
     sparse?: string[];
   };
@@ -139,19 +139,23 @@ export function parseEngramToml(tomlPath: string): EngramIndexEntry | null {
     }
   }
 
-  // Extract wrap config (locked will be added by buildIndexFromEngrams)
+  // Extract wrap config (locked SHA will be added by buildIndexFromEngrams if lock=true)
   if (parsed.wrap && typeof parsed.wrap === "object") {
     const wrap = parsed.wrap as Record<string, unknown>;
     if (typeof wrap.remote === "string") {
       entry.wrap = {
         remote: wrap.remote,
-        locked: "", // Placeholder - must be resolved from git
+        locked: "", // Placeholder - resolved from git only if lock=true
       };
       if (typeof wrap.ref === "string") {
         entry.wrap.ref = wrap.ref;
       }
       if (Array.isArray(wrap.sparse)) {
         entry.wrap.sparse = wrap.sparse as string[];
+      }
+      // Track if locking is enabled
+      if (wrap.lock === true) {
+        (entry.wrap as Record<string, unknown>)._lock = true;
       }
     }
   }
@@ -218,15 +222,29 @@ export function buildIndexFromEngrams(repoPath: string): EngramIndex {
 
     const parsed = parseEngramToml(tomlPath);
     if (parsed) {
-      // For wrapped engrams, resolve the locked commit from content/
+      // For wrapped engrams with lock=true, resolve the locked commit from content/
       if (parsed.wrap) {
-        const contentDir = path.join(engramPath, "content");
-        const lockedSha = git(["rev-parse", "HEAD"], contentDir);
-        if (lockedSha) {
-          parsed.wrap.locked = lockedSha;
+        const wrapAny = parsed.wrap as Record<string, unknown>;
+        const shouldLock = wrapAny._lock === true;
+        delete wrapAny._lock; // Don't include internal flag in index
+
+        if (shouldLock) {
+          const contentDir = path.join(engramPath, "content");
+          const lockedSha = git(["rev-parse", "HEAD"], contentDir);
+          if (lockedSha) {
+            parsed.wrap.locked = lockedSha;
+          } else {
+            // Content not initialized yet, can't lock
+            delete parsed.wrap.locked;
+          }
         } else {
-          // Content not initialized yet, skip wrap info
-          delete parsed.wrap;
+          // No locking - don't include locked field
+          delete parsed.wrap.locked;
+        }
+        
+        // Clean up empty locked string
+        if (parsed.wrap.locked === "") {
+          delete (parsed.wrap as Record<string, unknown>).locked;
         }
       } else {
         // Add URL from .gitmodules if available (for submodule-based engrams)

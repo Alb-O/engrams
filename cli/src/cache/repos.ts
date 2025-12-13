@@ -292,6 +292,10 @@ export function cloneWithSparseCheckout(
   // Checkout specific ref if needed
   if (needsDelayedCheckout) {
     const checkoutRef = ref || "HEAD";
-    execSync(`git checkout ${checkoutRef}`, { cwd: targetDir, stdio });
+    // Suppress detached HEAD warning when checking out a specific commit
+    execSync(`git -c advice.detachedHead=false checkout ${checkoutRef}`, {
+      cwd: targetDir,
+      stdio,
+    });
   }
 }

@@ -264,7 +264,8 @@ interface IndexEntry {
   wrap?: {
     remote: string;
     ref?: string;
-    locked: string;
+    /** Only present if lock=true in manifest */
+    locked?: string;
     sparse?: string[];
   };
 }
