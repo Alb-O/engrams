@@ -1,23 +1,28 @@
-// Re-export all public APIs from focused source files
 export type {
   Engram,
   ContextTriggerMatcher,
-  FileTreeOptions,
   TriggerConfig,
   CompiledTriggerRegexes,
-} from "./core";
-export { logWarning, logError } from "./logging";
+  FileTreeOptions,
+} from "./types";
+
 export {
   expandBraces,
   compileContextTrigger,
   buildContextTriggerMatchers,
+} from "./triggers";
+
+export {
+  MANIFEST_FILENAME,
   generateToolName,
   parseEngram,
+} from "./manifest";
+
+export {
   findEngramFiles,
   discoverEngrams,
   discoverEngramsWithLazy,
   getDefaultEngramPaths,
   readIndexRef,
   getEngramsFromIndex,
-} from "./core";
-export { generateFileTree } from "./tree";
+} from "./discovery";

@@ -1,7 +1,17 @@
 import { createConsola } from "consola/basic";
+import pc from "picocolors";
 import pkg from "../package.json";
 
 export const logger = createConsola().withTag(pkg.name);
+
+export const colors = {
+  bold: pc.bold,
+  dim: pc.dim,
+  green: pc.green,
+  yellow: pc.yellow,
+  red: pc.red,
+  cyan: pc.cyan,
+} as const;
 
 export function logWarning(message: string, ...args: unknown[]) {
   logger.warn(message, ...args);

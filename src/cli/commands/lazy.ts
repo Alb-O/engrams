@@ -2,8 +2,7 @@ import { command, positional, string, flag } from "cmd-ts";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import * as TOML from "@iarna/toml";
-import pc from "picocolors";
-import { info, success, warn, fail, log } from "../../logging";
+import { info, success, warn, fail, log, colors } from "../../logging";
 import { findProjectRoot, getModulePaths } from "../utils";
 import {
   readIndex,
@@ -238,16 +237,16 @@ export const showIndex = command({
       return;
     }
 
-    log(pc.bold("Engram Index") + pc.dim(" (refs/engrams/index)\n"));
+    log(colors.bold("Engram Index") + colors.dim(" (refs/engrams/index)\n"));
 
     for (const [name, entry] of Object.entries(index)) {
       const submodulePath = `.engrams/${name}`;
       const initialized = isSubmoduleInitialized(projectRoot, submodulePath);
       const status = initialized
-        ? pc.green("●")
-        : pc.dim("○");
+        ? colors.green("●")
+        : colors.dim("○");
 
-      log(`${status} ${pc.cyan(name)}: ${entry.name}`);
+      log(`${status} ${colors.cyan(name)}: ${entry.name}`);
       if (entry.description) {
         info(`    ${entry.description}`);
       }

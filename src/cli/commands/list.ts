@@ -1,9 +1,8 @@
 import { command, flag } from "cmd-ts";
 import * as fs from "node:fs";
 import * as path from "node:path";
-import pc from "picocolors";
 import * as TOML from "@iarna/toml";
-import { info, log } from "../../logging";
+import { info, log, colors } from "../../logging";
 import { getModulePaths, findProjectRoot, shortenPath } from "../utils";
 import { readIndex, isSubmoduleInitialized } from "../index-ref";
 
@@ -53,9 +52,9 @@ interface EngramToml {
 }
 
 function getStatusDot(eg: { initialized: boolean; isWrapped?: boolean }): string {
-  if (eg.initialized) return pc.green("●");
-  if (eg.isWrapped) return pc.yellow("◐");
-  return pc.dim("○");
+  if (eg.initialized) return colors.green("●");
+  if (eg.isWrapped) return colors.yellow("◐");
+  return colors.dim("○");
 }
 
 function parseEngramToml(tomlPath: string): {
@@ -185,13 +184,13 @@ function getTriggerSummary(
     (activation?.agentMsg?.length || 0);
   const total = disclosureCount + activationCount;
 
-  if (total === 0) return pc.green("always visible");
+  if (total === 0) return colors.green("always visible");
 
   const parts: string[] = [];
   if (disclosureCount > 0) parts.push(`${disclosureCount} disclosure`);
   if (activationCount > 0) parts.push(`${activationCount} activation`);
 
-  return pc.dim(parts.join(", "));
+  return colors.dim(parts.join(", "));
 }
 
 function printEngramTree(
@@ -209,8 +208,8 @@ function printEngramTree(
 
     const nameDisplay =
       eg.displayName !== eg.name
-        ? `${pc.bold(eg.name)} ${pc.dim(`(${eg.displayName})`)}`
-        : pc.bold(eg.name);
+        ? `${colors.bold(eg.name)} ${colors.dim(`(${eg.displayName})`)}`
+        : colors.bold(eg.name);
 
     const maxDescLen = 50;
     let desc = "";
@@ -219,16 +218,16 @@ function printEngramTree(
         ? eg.description.slice(0, maxDescLen - 3) + "..."
         : eg.description;
     }
-    const descDisplay = desc ? pc.dim(` - ${desc}`) : "";
+    const descDisplay = desc ? colors.dim(` - ${desc}`) : "";
 
     const triggerDisplay = getTriggerSummary(eg.disclosureTriggers, eg.activationTriggers);
     const triggerPart = triggerDisplay ? ` [${triggerDisplay}]` : "";
 
     let warning = "";
     if (!eg.hasToml && !eg.fromIndex) {
-      warning = pc.yellow(" (missing engram.toml)");
+      warning = colors.yellow(" (missing engram.toml)");
     } else if (eg.parseError) {
-      warning = pc.red(` (parse error: ${eg.parseError})`);
+      warning = colors.red(` (parse error: ${eg.parseError})`);
     }
 
     log(
@@ -357,9 +356,9 @@ export const list = command({
 
     if (globalEngrams.length > 0 && !localOnly) {
       log(
-        pc.bold("Global engrams") +
-          pc.dim(` (${shortenPath(paths.global)})`) +
-          pc.dim(` - ${totalGlobal} engram${totalGlobal === 1 ? "" : "s"}`),
+        colors.bold("Global engrams") +
+          colors.dim(` (${shortenPath(paths.global)})`) +
+          colors.dim(` - ${totalGlobal} engram${totalGlobal === 1 ? "" : "s"}`),
       );
       if (flat) {
         const flatList = flatten(globalEngrams);
@@ -377,9 +376,9 @@ export const list = command({
     if (localEngrams.length > 0 && !globalOnly) {
       if (printedSection) log("");
       log(
-        pc.bold("Local engrams") +
-          pc.dim(` (${shortenPath(paths.local!)})`) +
-          pc.dim(` - ${totalLocal} engram${totalLocal === 1 ? "" : "s"}`),
+        colors.bold("Local engrams") +
+          colors.dim(` (${shortenPath(paths.local!)})`) +
+          colors.dim(` - ${totalLocal} engram${totalLocal === 1 ? "" : "s"}`),
       );
       if (flat) {
         const flatList = flatten(localEngrams);
