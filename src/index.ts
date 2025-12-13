@@ -12,6 +12,17 @@ import {
     type Module,
 } from "./helpers";
 
+/**
+ * Shortens a path by replacing the home directory with ~
+ */
+function shortenPath(filePath: string): string {
+    const home = os.homedir();
+    if (filePath.startsWith(home)) {
+        return "~" + filePath.slice(home.length);
+    }
+    return filePath;
+}
+
 const ModulesPlugin: Plugin = async (input) => {
     try {
         const modules = await discoverModules(
@@ -104,7 +115,7 @@ const ModulesPlugin: Plugin = async (input) => {
                         ? `\n\n## Available Resources:\n\`\`\`\n${fileTree}\n\`\`\``
                         : "";
 
-                    const preamble = `# Module: ${module.name}\n\nBase directory: ${module.directory}\n\nModule README:\n\n---\n\n`;
+                    const preamble = `# Module: ${module.name}\n\nBase directory: ${shortenPath(module.directory)}\n\nModule README:\n\n---\n\n`;
 
                     await sendSilentPrompt(
                         `${preamble}${module.content}${treeSection}`,
