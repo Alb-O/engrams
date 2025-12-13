@@ -8,6 +8,7 @@ import {
     generateFileTree,
     getDefaultModulePaths,
     logError,
+    logWarning,
     type Module,
 } from "./helpers";
 
@@ -40,14 +41,23 @@ const ModulesPlugin: Plugin = async (input) => {
                 matcher.agentMsgRegexes.length > 0,
         );
         const sessionTriggers = new Map<string, Set<string>>();
+        const warnedUnknownTools = new Set<string>();
 
         /**
          * Checks if a module's parent chain is fully visible.
          * A module is only visible if all its ancestors are also in the active set.
+         * Returns false for unknown tool names to prevent activation of undeclared tools.
          */
         const isParentChainActive = (toolName: string, active: Set<string>): boolean => {
             const module = moduleByToolName.get(toolName);
-            if (!module) return true; // Unknown module, allow it
+            if (!module) {
+                // Unknown tool name - reject and warn once
+                if (!warnedUnknownTools.has(toolName)) {
+                    warnedUnknownTools.add(toolName);
+                    logWarning(`Unknown tool name in active set: ${toolName}`);
+                }
+                return false;
+            }
 
             if (!module.parentToolName) {
                 // Root module - no parent constraint
@@ -191,7 +201,9 @@ const ModulesPlugin: Plugin = async (input) => {
 
     } catch (error) {
         logError("Failed to initialize modules plugin:", error);
-        return {};
+        // Rethrow to surface the error to the plugin host
+        // This ensures misconfigurations are visible rather than silently ignored
+        throw error;
     }
 };
 

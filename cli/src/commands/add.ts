@@ -157,8 +157,13 @@ export const add = command({
         }
         console.log(pc.green(`✓ Cloned to: ${targetDir}`));
       }
-    } catch (error) {
-      console.error(pc.red("Failed to add module"));
+    } catch (error: any) {
+      const errorMessage = error?.message || error?.stderr?.toString() || String(error);
+      console.error(pc.red("Failed to add module:"));
+      console.error(pc.dim(errorMessage));
+      if (error?.status) {
+        console.error(pc.dim(`Exit code: ${error.status}`));
+      }
       process.exit(1);
     }
   },

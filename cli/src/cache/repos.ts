@@ -3,6 +3,7 @@ import * as path from "path";
 import * as os from "os";
 import * as crypto from "crypto";
 import { execSync } from "child_process";
+import pc from "picocolors";
 import { getCacheDir, formatBytes, getDirSize } from "./index";
 
 /**
@@ -15,6 +16,7 @@ export function urlToCachePath(url: string): string {
   if (!match) {
     // Fallback to hash-based path for unusual URLs
     const hash = crypto.createHash("sha256").update(url).digest("hex").slice(0, 16);
+    console.warn(pc.yellow(`Warning: Non-standard URL format, using hash-based cache path for: ${url}`));
     return path.join(getCacheDir(), "repos", "other", `${hash}.git`);
   }
 
@@ -33,6 +35,7 @@ export function isCached(url: string): boolean {
 /**
  * Ensure a repo is in the cache, fetching if needed.
  * Returns the path to the cached bare repo.
+ * Throws if fetch/clone fails with actionable error message.
  */
 export function ensureCached(url: string, options?: { quiet?: boolean }): string {
   const cachePath = urlToCachePath(url);
@@ -45,8 +48,12 @@ export function ensureCached(url: string, options?: { quiet?: boolean }): string
         cwd: cachePath,
         ...quiet,
       });
-    } catch {
-      // Fetch failed, but cache exists - continue anyway
+    } catch (error: any) {
+      // Fetch failed - warn but continue with stale cache
+      const errorMsg = error?.stderr?.toString() || error?.message || "Unknown error";
+      console.warn(pc.yellow(`Warning: Failed to update cache for ${url}`));
+      console.warn(pc.dim(`  ${errorMsg.trim()}`));
+      console.warn(pc.dim("  Using potentially stale cached version"));
     }
   } else {
     // Clone as bare repo into cache
@@ -54,7 +61,12 @@ export function ensureCached(url: string, options?: { quiet?: boolean }): string
     if (!fs.existsSync(parentDir)) {
       fs.mkdirSync(parentDir, { recursive: true });
     }
-    execSync(`git clone --bare ${url} ${cachePath}`, quiet);
+    try {
+      execSync(`git clone --bare ${url} ${cachePath}`, quiet);
+    } catch (error: any) {
+      const errorMsg = error?.stderr?.toString() || error?.message || "Unknown error";
+      throw new Error(`Failed to clone ${url} into cache:\n  ${errorMsg.trim()}`);
+    }
   }
 
   return cachePath;

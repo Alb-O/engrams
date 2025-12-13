@@ -12,6 +12,7 @@ interface ModuleInfo {
   path: string;
   scope: "global" | "local";
   hasToml: boolean;
+  parseError?: string;
   triggers?: {
     anyMsg?: string[];
     userMsg?: string[];
@@ -25,7 +26,8 @@ function parseModuleToml(tomlPath: string): {
   name?: string;
   description?: string;
   triggers?: { anyMsg?: string[]; userMsg?: string[]; agentMsg?: string[] };
-} | null {
+  error?: string;
+} {
   try {
     const content = fs.readFileSync(tomlPath, "utf-8");
     const parsed = TOML.parse(content) as any;
@@ -34,8 +36,10 @@ function parseModuleToml(tomlPath: string): {
       description: parsed.description,
       triggers: parsed.triggers,
     };
-  } catch {
-    return null;
+  } catch (err: any) {
+    return {
+      error: err?.message || "Unknown parse error",
+    };
   }
 }
 
@@ -72,6 +76,7 @@ function scanModulesRecursive(
           path: modulePath,
           scope,
           hasToml,
+          parseError: tomlData?.error,
           triggers: tomlData?.triggers,
           children,
           depth,
@@ -134,8 +139,13 @@ function printModuleTree(
     const triggerDisplay = getTriggerSummary(mod.triggers);
     const triggerPart = triggerDisplay ? ` [${triggerDisplay}]` : "";
 
-    // Warning if missing toml
-    const warning = !mod.hasToml ? pc.yellow(" (missing openmodule.toml)") : "";
+    // Warnings
+    let warning = "";
+    if (!mod.hasToml) {
+      warning = pc.yellow(" (missing openmodule.toml)");
+    } else if (mod.parseError) {
+      warning = pc.red(` (parse error: ${mod.parseError})`);
+    }
 
     console.log(`${prefix}${connector} ${nameDisplay}${descDisplay}${triggerPart}${warning}`);
 

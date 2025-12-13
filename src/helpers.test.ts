@@ -77,7 +77,7 @@ describe("modules helpers", () => {
     expect(files).toContain(path.join(linkPath, "openmodule.toml"));
   });
 
-  it("discovers modules across multiple base paths with later entries overriding earlier tool keys", async () => {
+  it("throws error when duplicate tool names are detected across multiple base paths", async () => {
     const configDir = path.join(tempDir, "config");
     const projectDir = path.join(tempDir, "project");
     const sharedName = "shared-module";
@@ -85,15 +85,9 @@ describe("modules helpers", () => {
     await createModule(path.join(configDir, sharedName), sharedName, "Config description is long enough.");
     await createModule(path.join(projectDir, sharedName), sharedName, "Project description is even longer for testing.");
 
-    const modules = await discoverModules([configDir, projectDir]);
-    expect(modules.map((s) => s.toolName)).toEqual(["openmodule_shared_module", "openmodule_shared_module"]);
-
-    const toolDescriptions = modules.reduce<Record<string, Module>>((acc, module) => {
-      acc[module.toolName] = module;
-      return acc;
-    }, {});
-
-    expect(toolDescriptions["openmodule_shared_module"].directory).toBe(path.join(projectDir, sharedName));
+    await expect(discoverModules([configDir, projectDir])).rejects.toThrow(
+      /Duplicate tool names detected/
+    );
   });
 
   it("generates tool names by flattening directories with underscores", () => {

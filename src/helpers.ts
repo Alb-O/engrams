@@ -427,22 +427,38 @@ function normalizeBasePaths(basePaths: unknown): string[] {
  * Establishes parent-child relationships between modules based on directory hierarchy.
  * A module is a child of another if its directory is a descendant of the parent's directory.
  * Only the closest ancestor is set as the parent.
+ * Uses realpath to resolve symlinks for accurate ancestry detection.
  */
-function establishModuleHierarchy(modules: Module[]): void {
-    // Sort by directory depth (shallowest first) to ensure parents are processed before children
-    const sortedByDepth = [...modules].sort(
-        (a, b) => a.directory.split(sep).length - b.directory.split(sep).length
-    );
+async function establishModuleHierarchy(modules: Module[]): Promise<void> {
+    // Resolve real paths for all modules to handle symlinks correctly
+    const realPaths = new Map<Module, string>();
+    for (const module of modules) {
+        try {
+            realPaths.set(module, await fs.realpath(module.directory));
+        } catch {
+            // If realpath fails, use original path
+            realPaths.set(module, module.directory);
+        }
+    }
 
-    // Map from directory to module for quick lookup
+    // Sort by resolved directory depth (shallowest first)
+    const sortedByDepth = [...modules].sort((a, b) => {
+        const aPath = realPaths.get(a) || a.directory;
+        const bPath = realPaths.get(b) || b.directory;
+        return aPath.split(sep).length - bPath.split(sep).length;
+    });
+
+    // Map from resolved directory to module for quick lookup
     const dirToModule = new Map<string, Module>();
     for (const module of sortedByDepth) {
-        dirToModule.set(module.directory, module);
+        const realPath = realPaths.get(module) || module.directory;
+        dirToModule.set(realPath, module);
     }
 
     // For each module, find its closest ancestor that is also a module
     for (const module of sortedByDepth) {
-        let currentDir = dirname(module.directory);
+        const realPath = realPaths.get(module) || module.directory;
+        let currentDir = dirname(realPath);
 
         while (currentDir && currentDir !== dirname(currentDir)) {
             const parentModule = dirToModule.get(currentDir);
@@ -500,22 +516,40 @@ export async function discoverModules(basePaths: unknown): Promise<Module[]> {
         );
     }
 
-    const toolNames = new Set<string>();
-    const duplicates: string[] = [];
+    const toolNames = new Map<string, string>(); // toolName -> manifestPath
+    const duplicates: { toolName: string; paths: string[] }[] = [];
 
     for (const module of modules) {
-        if (toolNames.has(module.toolName)) {
-            duplicates.push(module.toolName);
+        const existing = toolNames.get(module.toolName);
+        if (existing) {
+            // Find or create duplicate entry
+            const dup = duplicates.find((d) => d.toolName === module.toolName);
+            if (dup) {
+                dup.paths.push(module.manifestPath);
+            } else {
+                duplicates.push({
+                    toolName: module.toolName,
+                    paths: [existing, module.manifestPath],
+                });
+            }
         }
-        toolNames.add(module.toolName);
+        toolNames.set(module.toolName, module.manifestPath);
     }
 
     if (duplicates.length > 0) {
-        logWarning(`Duplicate tool names detected: ${duplicates.join(", ")}`);
+        const details = duplicates
+            .map(
+                (d) =>
+                    `  ${d.toolName}:\n${d.paths.map((p) => `    - ${p}`).join("\n")}`
+            )
+            .join("\n");
+        throw new Error(
+            `Duplicate tool names detected. Each module must have a unique path.\n${details}`
+        );
     }
 
     // Establish parent-child relationships based on directory hierarchy
-    establishModuleHierarchy(modules);
+    await establishModuleHierarchy(modules);
 
     return modules;
 }

@@ -42,16 +42,18 @@ export const remove = command({
       }
       targetDir = path.join(paths.local, name);
 
-      // Check if it's a submodule
+      // Check if it's a submodule using git config (more reliable than string search)
       try {
-        const gitmodules = path.join(projectRoot, ".gitmodules");
-        if (fs.existsSync(gitmodules)) {
-          const content = fs.readFileSync(gitmodules, "utf-8");
-          const relativePath = path.relative(projectRoot, targetDir);
-          isSubmodule = content.includes(relativePath);
-        }
+        const relativePath = path.relative(projectRoot, targetDir);
+        // git config --file .gitmodules --get-regexp returns entries for submodule paths
+        const result = execSync(
+          `git config --file .gitmodules --get-regexp "submodule\\..*\\.path" | grep -E "\\s${relativePath.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$"`,
+          { cwd: projectRoot, stdio: "pipe", encoding: "utf-8" }
+        );
+        isSubmodule = result.trim().length > 0;
       } catch {
-        // Not a submodule
+        // Command failed - not a submodule or no .gitmodules
+        isSubmodule = false;
       }
     }
 
@@ -103,8 +105,10 @@ export const remove = command({
         fs.rmSync(targetDir, { recursive: true, force: true });
         console.log(pc.green(`✓ Removed: ${name}`));
       }
-    } catch (error) {
-      console.error(pc.red("Failed to remove module"));
+    } catch (error: any) {
+      const errorMessage = error?.message || error?.stderr?.toString() || String(error);
+      console.error(pc.red("Failed to remove module:"));
+      console.error(pc.dim(errorMessage));
       process.exit(1);
     }
   },
