@@ -1,0 +1,22 @@
+id: prefer-bun-hash
+language: typescript
+severity: warning
+message: "Prefer Bun.CryptoHasher or Bun.hash() for hashing. Bun's hashing is faster than crypto module."
+note: |
+  Bun provides faster hashing alternatives to Node's crypto module.
+  
+  Instead of:
+    import { createHash } from 'crypto';
+    const hash = createHash('sha256').update(data).digest('hex');
+  
+  Use:
+    const hasher = new Bun.CryptoHasher('sha256');
+    hasher.update(data);
+    const hash = hasher.digest('hex');
+  
+  For simple one-shot hashing:
+    const hash = Bun.hash(data); // Returns number (fast, non-crypto)
+rule:
+  any:
+    - pattern: crypto.createHash($ALG)
+    - pattern: createHash($ALG)

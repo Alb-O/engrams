@@ -1,0 +1,11 @@
+id: prefer-bun-file
+valid:
+  - "const content = await Bun.file(path).text()"
+  - "const data = await Bun.file(path).json()"
+  - "const exists = await Bun.file(path).exists()"
+  - "const buffer = await Bun.file(path).arrayBuffer()"
+invalid:
+  - "const content = await fs.readFile(path, 'utf8')"
+  - "const data = await fsPromises.readFile(path, 'utf8')"
+  - "const content = await fs.promises.readFile(path, 'utf-8')"
+  - "fs.readFile(path, (err, data) => {})"

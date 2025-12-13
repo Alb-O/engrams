@@ -1,0 +1,20 @@
+id: prefer-bun-file
+language: typescript
+severity: warning
+message: "Prefer Bun.file() for file reading. Use Bun.file(path).text() or .json() instead."
+note: |
+  Bun.file() is up to 2x faster than fs.readFile().
+  
+  Instead of:
+    await fs.readFile(path, 'utf8')
+  
+  Use:
+    await Bun.file(path).text()
+  
+  For JSON:
+    await Bun.file(path).json()
+rule:
+  any:
+    - pattern: fs.readFile($PATH, $$$)
+    - pattern: fsPromises.readFile($PATH, $$$)
+    - pattern: fs.promises.readFile($PATH, $$$)

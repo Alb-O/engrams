@@ -1,0 +1,9 @@
+id: prefer-bun-hash
+valid:
+  - "const hasher = new Bun.CryptoHasher('sha256')"
+  - "const hash = hasher.digest('hex')"
+  - "const h = Bun.hash(data)"
+invalid:
+  - "const hash = crypto.createHash('sha256')"
+  - "const hash = createHash('sha256').update(data).digest('hex')"
+  - "crypto.createHash('md5').update(content)"

@@ -1,0 +1,27 @@
+id: prefer-bun-spawn
+language: typescript
+severity: warning
+message: "Prefer Bun.spawnSync() or Bun.spawn() over child_process. Bun's subprocess APIs are 60% faster."
+note: |
+  Bun.spawnSync() is 60% faster than child_process.spawnSync().
+  
+  Instead of:
+    import { spawnSync } from 'child_process';
+    const result = spawnSync('git', ['status'], { cwd, encoding: 'utf-8' });
+    if (result.status !== 0) { ... }
+  
+  Use:
+    const result = Bun.spawnSync(['git', 'status'], { cwd });
+    if (!result.success) { ... }
+    const output = result.stdout.toString();
+  
+  For async:
+    const proc = Bun.spawn(['cmd', 'args']);
+    const output = await proc.stdout.text();
+    await proc.exited;
+rule:
+  any:
+    - pattern: spawnSync($$$)
+    - pattern: execSync($$$)
+    - pattern: spawn($$$)
+    - pattern: exec($$$)

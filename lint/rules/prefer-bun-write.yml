@@ -1,0 +1,23 @@
+id: prefer-bun-write
+language: typescript
+severity: warning
+message: "Prefer Bun.write() for file writing. It's up to 2x faster than fs.writeFile()."
+note: |
+  Bun.write() is up to 2x faster than fs.writeFile().
+  
+  Instead of:
+    await fs.writeFile(path, content)
+  
+  Use:
+    await Bun.write(path, content)
+  
+  Bun.write() also handles:
+  - Objects (auto-serialized to JSON)
+  - Blobs, ArrayBuffers, TypedArrays
+  - Response objects (streaming)
+  - Other Bun.file() instances (efficient copy)
+rule:
+  any:
+    - pattern: fs.writeFile($PATH, $$$)
+    - pattern: fsPromises.writeFile($PATH, $$$)
+    - pattern: fs.promises.writeFile($PATH, $$$)

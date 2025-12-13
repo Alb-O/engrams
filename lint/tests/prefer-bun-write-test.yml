@@ -1,0 +1,10 @@
+id: prefer-bun-write
+valid:
+  - "await Bun.write(path, content)"
+  - "await Bun.write('output.json', data)"
+  - "Bun.write(destination, Bun.file(source))"
+invalid:
+  - "await fs.writeFile(path, content)"
+  - "await fsPromises.writeFile(path, data)"
+  - "await fs.promises.writeFile(path, content)"
+  - "fs.writeFile(path, content, (err) => {})"
