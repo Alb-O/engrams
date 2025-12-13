@@ -14,8 +14,8 @@ export function getBundledPluginPath(): string | null {
 
   const possiblePaths = [
     path.join(execDir, "..", "share", "engrams", "engrams.min.js"), // from Nix/installed binary
-    path.join(__dirname, "..", "dist", "engrams.bundle.js"), // from built cli dist/
-    path.join(__dirname, "..", "..", "..", "dist", "engrams.bundle.js"), // from cli/src/cache/
+    path.join(__dirname, "..", "..", "dist", "engrams.bundle.js"), // from built cli in src/cli/cache/
+    path.join(__dirname, "..", "..", "..", "dist", "engrams.bundle.js"), // fallback
     path.join(cwd, "dist", "engrams.bundle.js"), // local build in checkout
     path.join(cwd, "engrams.bundle.js"), // fallback if build was output alongside CWD
   ];

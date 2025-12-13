@@ -1,4 +1,4 @@
-import { command, positional, string, flag, option, optional } from "cmd-ts";
+import { command, positional, string, flag } from "cmd-ts";
 import * as fs from "fs";
 import * as path from "path";
 import * as TOML from "@iarna/toml";
@@ -9,10 +9,8 @@ import {
   fetchIndex,
   initSubmodule,
   isSubmoduleInitialized,
-  configureAutoFetch,
-  EngramIndexEntry,
 } from "../index-ref";
-import { CONTENT_DIR, MANIFEST_FILES } from "./wrap";
+import { CONTENT_DIR } from "./wrap";
 import { cloneWithSparseCheckout } from "../cache";
 
 interface WrapConfig {
@@ -22,7 +20,7 @@ interface WrapConfig {
 }
 
 interface EngramToml {
-  name: string;
+  name?: string;
   description?: string;
   wrap?: WrapConfig;
 }
@@ -263,19 +261,39 @@ export const showIndex = command({
         console.log(pc.dim(`    ${entry.description}`));
       }
 
-      if (entry.triggers) {
+      // Show disclosure triggers
+      if (entry["disclosure-triggers"]) {
+        const triggers = entry["disclosure-triggers"];
         const parts: string[] = [];
-        if (entry.triggers["user-msg"]?.length) {
-          parts.push(`user: ${entry.triggers["user-msg"].join(", ")}`);
+        if (triggers["user-msg"]?.length) {
+          parts.push(`user: ${triggers["user-msg"].join(", ")}`);
         }
-        if (entry.triggers["agent-msg"]?.length) {
-          parts.push(`agent: ${entry.triggers["agent-msg"].join(", ")}`);
+        if (triggers["agent-msg"]?.length) {
+          parts.push(`agent: ${triggers["agent-msg"].join(", ")}`);
         }
-        if (entry.triggers["any-msg"]?.length) {
-          parts.push(`any: ${entry.triggers["any-msg"].join(", ")}`);
+        if (triggers["any-msg"]?.length) {
+          parts.push(`any: ${triggers["any-msg"].join(", ")}`);
         }
         if (parts.length) {
-          console.log(pc.dim(`    triggers: ${parts.join(" | ")}`));
+          console.log(pc.dim(`    disclosure: ${parts.join(" | ")}`));
+        }
+      }
+
+      // Show activation triggers
+      if (entry["activation-triggers"]) {
+        const triggers = entry["activation-triggers"];
+        const parts: string[] = [];
+        if (triggers["user-msg"]?.length) {
+          parts.push(`user: ${triggers["user-msg"].join(", ")}`);
+        }
+        if (triggers["agent-msg"]?.length) {
+          parts.push(`agent: ${triggers["agent-msg"].join(", ")}`);
+        }
+        if (triggers["any-msg"]?.length) {
+          parts.push(`any: ${triggers["any-msg"].join(", ")}`);
+        }
+        if (parts.length) {
+          console.log(pc.dim(`    activation: ${parts.join(" | ")}`));
         }
       }
     }

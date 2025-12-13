@@ -4,7 +4,6 @@ import {
   flag,
   positional,
   string,
-  optional,
 } from "cmd-ts";
 import pc from "picocolors";
 import {

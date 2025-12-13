@@ -44,12 +44,18 @@ export const sync = command({
 
     console.log(pc.dim(`Found ${engramCount} engram(s):`));
     for (const [name, entry] of Object.entries(index)) {
-      const triggerCount =
-        (entry.triggers?.["any-msg"]?.length || 0) +
-        (entry.triggers?.["user-msg"]?.length || 0) +
-        (entry.triggers?.["agent-msg"]?.length || 0);
+      const disclosureCount =
+        (entry["disclosure-triggers"]?.["any-msg"]?.length || 0) +
+        (entry["disclosure-triggers"]?.["user-msg"]?.length || 0) +
+        (entry["disclosure-triggers"]?.["agent-msg"]?.length || 0);
+      const activationCount =
+        (entry["activation-triggers"]?.["any-msg"]?.length || 0) +
+        (entry["activation-triggers"]?.["user-msg"]?.length || 0) +
+        (entry["activation-triggers"]?.["agent-msg"]?.length || 0);
       const triggerInfo =
-        triggerCount > 0 ? pc.dim(` [${triggerCount} triggers]`) : "";
+        disclosureCount + activationCount > 0
+          ? pc.dim(` [${disclosureCount} disclosure, ${activationCount} activation]`)
+          : "";
       console.log(`  ${pc.cyan(name)}: ${entry.name}${triggerInfo}`);
     }
 

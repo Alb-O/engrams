@@ -1,0 +1,10 @@
+name = "Bun"
+version = "1.0.0"
+description = "Official Bun runtime documentation covering APIs, configuration, and usage"
+
+[wrap]
+remote = "https://github.com/oven-sh/bun.git"
+sparse = ["docs/**/*.mdx"]
+
+[disclosure-triggers]
+user-msg = ["bun"]

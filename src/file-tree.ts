@@ -1,5 +1,6 @@
 import { promises as fs, Dirent } from "fs";
 import { join, relative } from "path";
+import os from "os";
 import ignore, { type Ignore } from "ignore";
 import type { FileTreeOptions } from "./types";
 import { logWarning } from "./logging";
@@ -15,6 +16,17 @@ const DEFAULT_EXCLUDE_PATTERNS = [
   /dist/,
   /\.DS_Store/,
 ];
+
+/**
+ * Shortens a path by replacing the home directory with ~
+ */
+function shortenPath(filePath: string): string {
+  const home = os.homedir();
+  if (filePath.startsWith(home)) {
+    return "~" + filePath.slice(home.length);
+  }
+  return filePath;
+}
 
 /**
  * Loads ignore patterns from a file (gitignore syntax).
@@ -128,11 +140,11 @@ export async function generateFileTree(
           manifestOneliner.length > 80
             ? `${manifestOneliner.slice(0, 77)}...`
             : manifestOneliner;
-        lines.push(`${dir}/  # ${truncated}`);
+        lines.push(`${shortenPath(dir)}/  # ${truncated}`);
       } else {
         const dirComment = await getDirOneliner(dir);
         if (dirComment) {
-          lines.push(`${dir}/  ${dirComment}`);
+          lines.push(`${shortenPath(dir)}/  ${dirComment}`);
         }
       }
     }
@@ -162,7 +174,7 @@ export async function generateFileTree(
         lines.push(...subFiles);
       } else {
         // Add file with optional metadata
-        let line = fullPath;
+        let line = shortenPath(fullPath);
         if (includeMetadata) {
           const relPath = relative(directory, fullPath);
           const manifestOneliner = manifestOneliners[relPath];
@@ -173,7 +185,7 @@ export async function generateFileTree(
               manifestOneliner.length > 80
                 ? `${manifestOneliner.slice(0, 77)}...`
                 : manifestOneliner;
-            line = `${fullPath}  # ${truncated}`;
+            line = `${shortenPath(fullPath)}  # ${truncated}`;
           } else {
             // Default oneliner for README files since they're shown on activation
             const lowerName = entry.name.toLowerCase();
@@ -182,11 +194,11 @@ export async function generateFileTree(
               lowerName === "readme.txt" ||
               lowerName === "readme"
             ) {
-              line = `${fullPath}  # module README (shown above)`;
+              line = `${shortenPath(fullPath)}  # module README (shown above)`;
             } else {
               const comment = await getFileInlineComment(fullPath);
               if (comment) {
-                line = `${fullPath}  ${comment}`;
+                line = `${shortenPath(fullPath)}  ${comment}`;
               }
             }
           }

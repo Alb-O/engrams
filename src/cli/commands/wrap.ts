@@ -83,7 +83,7 @@ function generateManifest(
   }
 
   if (triggers.length > 0) {
-    lines.push("", "[triggers]");
+    lines.push("", "[disclosure-triggers]");
     const triggerList = triggers.map(t => `"${t}"`).join(", ");
     lines.push(`user-msg = [${triggerList}]`);
   }

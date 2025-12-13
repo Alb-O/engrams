@@ -5,6 +5,9 @@
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
+  "bin": {
+    "engram": "./dist/cli.js"
+  },
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
@@ -16,14 +19,16 @@
     "README.md"
   ],
   "scripts": {
-    "build": "bun build ./src/index.ts --outdir ./dist --target node && bun run build:types && bun run build:bundle",
+    "build": "bun build ./src/index.ts --outdir ./dist --target node && bun run build:types && bun run build:bundle && bun run build:cli",
     "build:types": "tsc --emitDeclarationOnly --declaration --outDir ./dist",
     "build:bundle": "bun build ./src/index.ts --outfile ./dist/engrams.bundle.js --target node --minify --external zod --external @opencode-ai/plugin",
+    "build:cli": "bun build ./src/cli/index.ts --outfile ./dist/cli.js --target node",
     "test": "bun test src/ --timeout 120000",
     "prepublishOnly": "bun run build"
   },
   "dependencies": {
     "@iarna/toml": "^2.2.5",
+    "cmd-ts": "^0.13.0",
     "ignore": "^7.0.5",
     "picocolors": "^1.1.1"
   },

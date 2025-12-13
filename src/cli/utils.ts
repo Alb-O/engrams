@@ -101,3 +101,14 @@ export function getEngramName(repo: string): string {
   // Strip eg. prefix if present for cleaner engram names
   return repo.replace(/^eg\./, "");
 }
+
+/**
+ * Shortens a path by replacing the home directory with ~
+ */
+export function shortenPath(filePath: string): string {
+  const home = os.homedir();
+  if (filePath.startsWith(home)) {
+    return "~" + filePath.slice(home.length);
+  }
+  return filePath;
+}

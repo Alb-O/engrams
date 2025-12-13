@@ -1,0 +1,10 @@
+name = "OpenCode"
+version = "1.0.0"
+description = "OpenCode documentation covering plugins, hooks, configuration, and CLI usage"
+
+[wrap]
+remote = "https://github.com/sst/opencode.git"
+sparse = ["packages/web/src/content/docs/**/*.mdx"]
+
+[disclosure-triggers]
+user-msg = ["opencode"]

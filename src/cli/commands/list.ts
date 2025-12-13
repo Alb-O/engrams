@@ -1,23 +1,10 @@
 import { command, flag } from "cmd-ts";
-import { execSync } from "child_process";
 import * as fs from "fs";
-import * as os from "os";
 import * as path from "path";
 import pc from "picocolors";
 import * as TOML from "@iarna/toml";
-import { getModulePaths, findProjectRoot } from "../utils";
+import { getModulePaths, findProjectRoot, shortenPath } from "../utils";
 import { readIndex, isSubmoduleInitialized } from "../index-ref";
-
-/**
- * Shortens a path by replacing the home directory with ~
- */
-function shortenPath(p: string): string {
-  const home = os.homedir();
-  if (p.startsWith(home)) {
-    return "~" + p.slice(home.length);
-  }
-  return p;
-}
 
 interface EngramInfo {
   name: string;
@@ -27,7 +14,12 @@ interface EngramInfo {
   scope: "global" | "local";
   hasToml: boolean;
   parseError?: string;
-  triggers?: {
+  disclosureTriggers?: {
+    anyMsg?: string[];
+    userMsg?: string[];
+    agentMsg?: string[];
+  };
+  activationTriggers?: {
     anyMsg?: string[];
     userMsg?: string[];
     agentMsg?: string[];
@@ -45,7 +37,12 @@ interface EngramInfo {
 interface EngramToml {
   name?: string;
   description?: string;
-  triggers?: {
+  "disclosure-triggers"?: {
+    "any-msg"?: string[];
+    "user-msg"?: string[];
+    "agent-msg"?: string[];
+  };
+  "activation-triggers"?: {
     "any-msg"?: string[];
     "user-msg"?: string[];
     "agent-msg"?: string[];
@@ -60,26 +57,39 @@ interface EngramToml {
 function parseEngramToml(tomlPath: string): {
   name?: string;
   description?: string;
-  triggers?: { anyMsg?: string[]; userMsg?: string[]; agentMsg?: string[] };
+  disclosureTriggers?: { anyMsg?: string[]; userMsg?: string[]; agentMsg?: string[] };
+  activationTriggers?: { anyMsg?: string[]; userMsg?: string[]; agentMsg?: string[] };
   hasWrap?: boolean;
   error?: string;
 } {
   try {
     const content = fs.readFileSync(tomlPath, "utf-8");
     const parsed = TOML.parse(content) as EngramToml;
+    
     // Convert hyphenated TOML keys to camelCase
-    const rawTriggers = parsed.triggers;
-    const triggers = rawTriggers
+    const rawDisclosure = parsed["disclosure-triggers"];
+    const disclosureTriggers = rawDisclosure
       ? {
-          anyMsg: rawTriggers["any-msg"],
-          userMsg: rawTriggers["user-msg"],
-          agentMsg: rawTriggers["agent-msg"],
+          anyMsg: rawDisclosure["any-msg"],
+          userMsg: rawDisclosure["user-msg"],
+          agentMsg: rawDisclosure["agent-msg"],
         }
       : undefined;
+      
+    const rawActivation = parsed["activation-triggers"];
+    const activationTriggers = rawActivation
+      ? {
+          anyMsg: rawActivation["any-msg"],
+          userMsg: rawActivation["user-msg"],
+          agentMsg: rawActivation["agent-msg"],
+        }
+      : undefined;
+      
     return {
       name: parsed.name,
       description: parsed.description,
-      triggers,
+      disclosureTriggers,
+      activationTriggers,
       hasWrap: !!parsed.wrap?.remote,
     };
   } catch (err) {
@@ -152,7 +162,8 @@ function scanEngramsRecursive(
           scope,
           hasToml,
           parseError: tomlData?.error,
-          triggers: tomlData?.triggers,
+          disclosureTriggers: tomlData?.disclosureTriggers,
+          activationTriggers: tomlData?.activationTriggers,
           children,
           depth,
           initialized,
@@ -168,22 +179,28 @@ function scanEngramsRecursive(
   return engrams;
 }
 
-function getTriggerSummary(triggers?: EngramInfo["triggers"]): string {
-  const anyCount = triggers?.anyMsg?.length || 0;
-  const userCount = triggers?.userMsg?.length || 0;
-  const agentCount = triggers?.agentMsg?.length || 0;
-  const total = anyCount + userCount + agentCount;
+function getTriggerSummary(
+  disclosure?: EngramInfo["disclosureTriggers"],
+  activation?: EngramInfo["activationTriggers"],
+): string {
+  const disclosureCount = 
+    (disclosure?.anyMsg?.length || 0) +
+    (disclosure?.userMsg?.length || 0) +
+    (disclosure?.agentMsg?.length || 0);
+  const activationCount = 
+    (activation?.anyMsg?.length || 0) +
+    (activation?.userMsg?.length || 0) +
+    (activation?.agentMsg?.length || 0);
+  const total = disclosureCount + activationCount;
 
   // No triggers defined = always visible
   if (total === 0) return pc.green("always visible");
 
   const parts: string[] = [];
+  if (disclosureCount > 0) parts.push(`${disclosureCount} disclosure`);
+  if (activationCount > 0) parts.push(`${activationCount} activation`);
 
-  if (anyCount > 0) parts.push(`${anyCount} any`);
-  if (userCount > 0) parts.push(`${userCount} user`);
-  if (agentCount > 0) parts.push(`${agentCount} agent`);
-
-  return pc.dim(`${total} trigger${total === 1 ? "" : "s"}`);
+  return pc.dim(parts.join(", "));
 }
 
 function printEngramTree(
@@ -221,7 +238,7 @@ function printEngramTree(
     const descDisplay = desc ? pc.dim(` - ${desc}`) : "";
 
     // Trigger summary
-    const triggerDisplay = getTriggerSummary(eg.triggers);
+    const triggerDisplay = getTriggerSummary(eg.disclosureTriggers, eg.activationTriggers);
     const triggerPart = triggerDisplay ? ` [${triggerDisplay}]` : "";
 
     // Warnings
@@ -266,11 +283,18 @@ function getUninitializedFromIndex(
     const submodulePath = `.engrams/${name}`;
     if (!isSubmoduleInitialized(projectRoot, submodulePath)) {
       // Convert trigger format
-      const triggers = entry.triggers
+      const disclosureTriggers = entry["disclosure-triggers"]
         ? {
-            anyMsg: entry.triggers["any-msg"],
-            userMsg: entry.triggers["user-msg"],
-            agentMsg: entry.triggers["agent-msg"],
+            anyMsg: entry["disclosure-triggers"]["any-msg"],
+            userMsg: entry["disclosure-triggers"]["user-msg"],
+            agentMsg: entry["disclosure-triggers"]["agent-msg"],
+          }
+        : undefined;
+      const activationTriggers = entry["activation-triggers"]
+        ? {
+            anyMsg: entry["activation-triggers"]["any-msg"],
+            userMsg: entry["activation-triggers"]["user-msg"],
+            agentMsg: entry["activation-triggers"]["agent-msg"],
           }
         : undefined;
 
@@ -281,7 +305,8 @@ function getUninitializedFromIndex(
         path: path.join(projectRoot, submodulePath),
         scope: "local",
         hasToml: false,
-        triggers,
+        disclosureTriggers,
+        activationTriggers,
         children: [],
         depth: 0,
         initialized: false,

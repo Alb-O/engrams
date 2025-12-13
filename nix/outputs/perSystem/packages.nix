@@ -15,25 +15,23 @@
       ...
     }:
     let
-      bun2nixPkg = inputs.bun2nix.packages.${pkgs.system}.default;
+      bun2nix = inputs.bun2nix.packages.${pkgs.system}.default;
     in
     {
-      # Plugin bundle (minified JS)
-      engrams-bundle = pkgs.callPackage (rootSrc + /nix) {
-        bun2nix = bun2nixPkg;
+      # Unified package: plugin bundle + CLI
+      engrams = pkgs.callPackage (rootSrc + /nix) {
+        inherit bun2nix;
         src = rootSrc;
         bunNix = rootSrc + /nix/bun.nix;
       };
 
-      # CLI that depends on the bundled plugin
-      engram = pkgs.callPackage (rootSrc + /cli/nix) {
-        bun2nix = bun2nixPkg;
-        src = rootSrc + /cli;
-        bunNix = rootSrc + /cli/nix/bun.nix;
-        pluginBundle = self'.packages.engrams-bundle;
-      };
+      # Alias for backwards compatibility
+      engrams-bundle = self'.packages.engrams;
 
-      # Default package should be the CLI, not the raw bundle
-      default = self'.packages.engram;
+      # CLI is just an alias to the unified package
+      engram = self'.packages.engrams;
+
+      # Default package is the unified engrams package
+      default = self'.packages.engrams;
     };
 }
