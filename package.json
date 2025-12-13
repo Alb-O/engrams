@@ -29,6 +29,7 @@
   "dependencies": {
     "@iarna/toml": "^2.2.5",
     "cmd-ts": "^0.13.0",
+    "consola": "^3.4.2",
     "ignore": "^7.0.5",
     "picocolors": "^1.1.1"
   },

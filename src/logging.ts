@@ -1,9 +1,12 @@
+import { createConsola } from "consola/basic";
 import pkg from "../package.json";
 
+export const logger = createConsola().withTag(pkg.name);
+
 export function logWarning(message: string, ...args: unknown[]) {
-  console.warn(`[${pkg.name}] ${message}`, ...args);
+  logger.warn(message, ...args);
 }
 
 export function logError(message: string, ...args: unknown[]) {
-  console.error(`[${pkg.name}] ${message}`, ...args);
+  logger.error(message, ...args);
 }
