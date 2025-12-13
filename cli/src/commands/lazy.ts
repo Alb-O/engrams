@@ -1,5 +1,4 @@
 import { command, positional, string, flag, option, optional } from "cmd-ts";
-import { execSync } from "child_process";
 import * as fs from "fs";
 import * as path from "path";
 import * as TOML from "@iarna/toml";
@@ -13,6 +12,7 @@ import {
   configureAutoFetch,
 } from "../index-ref";
 import { CONTENT_DIR, MANIFEST_FILES } from "./wrap";
+import { cloneWithSparseCheckout } from "../cache";
 
 interface WrapConfig {
   remote: string;
@@ -46,44 +46,6 @@ function readEngramToml(engramDir: string): EngramToml | null {
   
   const content = fs.readFileSync(tomlPath, "utf-8");
   return TOML.parse(content) as EngramToml;
-}
-
-/**
- * Clone a repo into the content/ subdirectory of an existing engram.
- */
-function cloneIntoContent(
-  url: string,
-  engramDir: string,
-  options: { ref?: string; sparse?: string[] } = {},
-): void {
-  const { ref, sparse } = options;
-  const contentDir = path.join(engramDir, CONTENT_DIR);
-  
-  const needsDelayedCheckout = (sparse && sparse.length > 0) || ref;
-  const depthFlag = ref ? "" : "--depth 1";
-  const checkoutFlag = needsDelayedCheckout ? "--no-checkout" : "";
-  const branchFlag = ref && !ref.match(/^[0-9a-f]{40}$/i) ? `-b ${ref}` : "";
-
-  execSync(
-    `git clone --filter=blob:none ${depthFlag} ${checkoutFlag} ${branchFlag} ${url} ${contentDir}`.replace(/\s+/g, " ").trim(),
-    { stdio: "inherit" },
-  );
-
-  // Configure sparse-checkout if patterns provided
-  if (sparse && sparse.length > 0) {
-    execSync(`git sparse-checkout init`, { cwd: contentDir, stdio: "pipe" });
-    execSync(`git sparse-checkout set --no-cone ${sparse.map(p => `'${p}'`).join(" ")}`, {
-      cwd: contentDir,
-      stdio: "pipe",
-      shell: "/bin/sh",
-    });
-  }
-
-  // Checkout specific ref if needed
-  if (needsDelayedCheckout) {
-    const checkoutRef = ref || "HEAD";
-    execSync(`git checkout ${checkoutRef}`, { cwd: contentDir, stdio: "inherit" });
-  }
 }
 
 export const lazyInit = command({
@@ -141,7 +103,8 @@ export const lazyInit = command({
         console.log(pc.dim(`Ref: ${wrap.ref}`));
       }
 
-      cloneIntoContent(wrap.remote, engramDir, {
+      const contentDir = path.join(engramDir, CONTENT_DIR);
+      cloneWithSparseCheckout(wrap.remote, contentDir, {
         ref: wrap.ref,
         sparse: wrap.sparse,
       });

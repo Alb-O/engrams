@@ -218,3 +218,80 @@ export function clearRepoCache(): void {
     fs.rmSync(reposDir, { recursive: true, force: true });
   }
 }
+
+export interface SparseCloneOptions {
+  /** Git ref to checkout (branch, tag, or commit hash) */
+  ref?: string;
+  /** Sparse-checkout patterns (glob patterns) */
+  sparse?: string[];
+  /** Skip cache and clone directly */
+  noCache?: boolean;
+  /** Suppress output */
+  quiet?: boolean;
+}
+
+/**
+ * Clone a repo with optional sparse-checkout, using cache for efficiency.
+ * Uses --reference to share objects with the cached bare repo.
+ *
+ * For sparse checkout scenarios, this still helps by:
+ * 1. Caching repo metadata (refs, commits, trees) in the bare repo
+ * 2. Using --reference to share any objects that are fetched
+ * 3. Speeding up subsequent clones of the same repo
+ */
+export function cloneWithSparseCheckout(
+  url: string,
+  targetDir: string,
+  options: SparseCloneOptions = {},
+): void {
+  const { ref, sparse, noCache = false, quiet = false } = options;
+  const stdio = quiet ? ("pipe" as const) : ("inherit" as const);
+
+  // Build base clone command
+  const needsDelayedCheckout = (sparse && sparse.length > 0) || ref;
+  const checkoutFlag = needsDelayedCheckout ? "--no-checkout" : "";
+  // Use blobless clone for efficiency with sparse checkout
+  const filterFlag = "--filter=blob:none";
+  // Don't use --depth with --reference as it can cause issues
+  const branchFlag =
+    ref && !ref.match(/^[0-9a-f]{40}$/i) ? `-b ${ref}` : "";
+
+  let cloneCmd: string;
+
+  if (noCache) {
+    // Direct clone without cache
+    const depthFlag = ref ? "" : "--depth 1";
+    cloneCmd =
+      `git clone ${filterFlag} ${depthFlag} ${checkoutFlag} ${branchFlag} ${url} ${targetDir}`
+        .replace(/\s+/g, " ")
+        .trim();
+  } else {
+    // Clone using cache as reference for object sharing
+    const cachePath = ensureCached(url, { quiet });
+    cloneCmd =
+      `git clone ${filterFlag} ${checkoutFlag} ${branchFlag} --reference ${cachePath} ${url} ${targetDir}`
+        .replace(/\s+/g, " ")
+        .trim();
+  }
+
+  execSync(cloneCmd, { stdio });
+
+  // Configure sparse-checkout if patterns provided
+  if (sparse && sparse.length > 0) {
+    execSync(`git sparse-checkout init`, { cwd: targetDir, stdio: "pipe" });
+    execSync(
+      `git sparse-checkout set --no-cone ${sparse.map((p) => `'${p}'`).join(" ")}`,
+      {
+        cwd: targetDir,
+        stdio: "pipe",
+        shell: "/bin/sh",
+      },
+    );
+  }
+
+  // Checkout specific ref if needed
+  if (needsDelayedCheckout) {
+    const checkoutRef = ref || "HEAD";
+    execSync(`git checkout ${checkoutRef}`, { cwd: targetDir, stdio });
+  }
+}

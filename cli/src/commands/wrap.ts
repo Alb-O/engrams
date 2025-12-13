@@ -1,9 +1,9 @@
 import { command, positional, option, multioption, flag, string, optional, array } from "cmd-ts";
-import { execSync, spawnSync } from "child_process";
 import * as fs from "fs";
 import * as path from "path";
 import pc from "picocolors";
 import { getModulePaths, findProjectRoot, parseRepoUrl, getEngramName } from "../utils";
+import { cloneWithSparseCheckout } from "../cache";
 
 /** Subdirectory where cloned repo content lives */
 export const CONTENT_DIR = "content";
@@ -17,46 +17,6 @@ export const MANIFEST_FILES = new Set([
   ".oneliner",
   ".oneliner.txt",
 ]);
-
-/**
- * Clone a repo with optional sparse-checkout and ref.
- * Uses blobless clone for efficiency.
- */
-function cloneRepo(
-  url: string,
-  targetDir: string,
-  options: { ref?: string; sparse?: string[] } = {},
-): void {
-  const { ref, sparse } = options;
-
-  // Build clone command
-  // Use --no-checkout if we need to configure sparse first, or checkout specific ref
-  const needsDelayedCheckout = (sparse && sparse.length > 0) || ref;
-  const depthFlag = ref ? "" : "--depth 1"; // Can't use depth with specific ref easily
-  const checkoutFlag = needsDelayedCheckout ? "--no-checkout" : "";
-  const branchFlag = ref && !ref.match(/^[0-9a-f]{40}$/i) ? `-b ${ref}` : ""; // Branch/tag, not commit hash
-
-  execSync(
-    `git clone --filter=blob:none ${depthFlag} ${checkoutFlag} ${branchFlag} ${url} ${targetDir}`.replace(/\s+/g, " ").trim(),
-    { stdio: "inherit" },
-  );
-
-  // Configure sparse-checkout if patterns provided
-  if (sparse && sparse.length > 0) {
-    execSync(`git sparse-checkout init`, { cwd: targetDir, stdio: "pipe" });
-    execSync(`git sparse-checkout set --no-cone ${sparse.map(p => `'${p}'`).join(" ")}`, {
-      cwd: targetDir,
-      stdio: "pipe",
-      shell: "/bin/sh",
-    });
-  }
-
-  // Checkout specific ref if needed
-  if (needsDelayedCheckout) {
-    const checkoutRef = ref || "HEAD";
-    execSync(`git checkout ${checkoutRef}`, { cwd: targetDir, stdio: "inherit" });
-  }
-}
 
 /**
  * Generate a README.md for the engram based on repo info and content paths.
@@ -239,8 +199,12 @@ export const wrap = command({
       short: "f",
       description: "Overwrite existing engram",
     }),
+    noCache: flag({
+      long: "no-cache",
+      description: "Skip repo cache and clone directly from remote",
+    }),
   },
-  handler: async ({ source, name, engramName, description, ref, sparse, triggers, global: isGlobal, lazy, force }) => {
+  handler: async ({ source, name, engramName, description, ref, sparse, triggers, global: isGlobal, lazy, force, noCache }) => {
     const projectRoot = findProjectRoot();
     const paths = getModulePaths(projectRoot || undefined);
 
@@ -304,7 +268,7 @@ export const wrap = command({
         // Create engram directory and clone into content/ subdirectory
         fs.mkdirSync(targetDir, { recursive: true });
         const contentDir = path.join(targetDir, CONTENT_DIR);
-        cloneRepo(parsed!.url, contentDir, { ref, sparse });
+        cloneWithSparseCheckout(parsed!.url, contentDir, { ref, sparse, noCache });
       }
     } else {
       if (lazy) {
@@ -381,16 +345,15 @@ export const wrap = command({
       fs.writeFileSync(readmePath, readme);
     }
 
-    // For lazy mode, create .gitignore to exclude cloned content
-    if (lazy) {
-      const gitignorePath = path.join(targetDir, ".gitignore");
-      const gitignoreContent = [
-        "# Cloned repo content (run 'engram lazy-init' to populate)",
-        `/${CONTENT_DIR}/`,
-        "",
-      ].join("\n");
-      fs.writeFileSync(gitignorePath, gitignoreContent);
-    }
+    // Create .gitignore to exclude cloned content
+    const gitignorePath = path.join(targetDir, ".gitignore");
+    const gitignoreComment = lazy
+      ? "# Cloned repo content (run 'engram lazy-init' to populate)"
+      : "# Cloned repo content";
+    const gitignoreContent = [gitignoreComment, `/${CONTENT_DIR}/`, ""].join(
+      "\n",
+    );
+    fs.writeFileSync(gitignorePath, gitignoreContent);
 
     if (lazy) {
       console.log(pc.green(`✓ Created lazy engram: ${dirName}`));

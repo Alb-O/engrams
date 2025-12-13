@@ -8,11 +8,13 @@ export {
   isCached,
   ensureCached,
   cloneFromCache,
+  cloneWithSparseCheckout,
   submoduleAddFromCache,
   listCachedRepos,
   removeRepoFromCache,
   clearRepoCache,
 } from "./repos";
+export type { SparseCloneOptions } from "./repos";
 
 export { getBundledPluginPath, installPlugin } from "./plugins";
 
