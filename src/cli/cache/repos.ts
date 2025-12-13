@@ -1,6 +1,6 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
-import pc from "picocolors";
+import { warn, info } from "../../logging";
 import { getCacheDir, getDirSize } from "./index";
 
 /**
@@ -60,11 +60,7 @@ export function urlToCachePath(url: string): string {
       .update(url)
       .digest("hex")
       .slice(0, 16);
-    console.warn(
-      pc.yellow(
-        `Warning: Non-standard URL format, using hash-based cache path for: ${url}`,
-      ),
-    );
+    warn(`Non-standard URL format, using hash-based cache path for: ${url}`);
     return path.join(getCacheDir(), "repos", "other", `${hash}.git`);
   }
 
@@ -100,9 +96,9 @@ export function ensureCached(
     });
     if (!result.success) {
       const errorMsg = result.stderr?.toString().trim() || "Unknown error";
-      console.warn(pc.yellow(`Warning: Failed to update cache for ${url}`));
-      console.warn(pc.dim(`  ${errorMsg}`));
-      console.warn(pc.dim("  Using potentially stale cached version"));
+      warn(`Failed to update cache for ${url}`);
+      info(`  ${errorMsg}`);
+      info("  Using potentially stale cached version");
     }
   } else {
     const parentDir = path.dirname(cachePath);

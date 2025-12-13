@@ -1,8 +1,8 @@
 import { command, positional, string } from "cmd-ts";
 import * as fs from "node:fs";
 import * as path from "node:path";
-import pc from "picocolors";
 import * as TOML from "@iarna/toml";
+import { info, fail, log } from "../../logging";
 import { getModulePaths, findProjectRoot, shortenPath } from "../utils";
 import { generateFileTree } from "../../file-tree";
 
@@ -47,7 +47,6 @@ async function parseEngram(
     try {
       promptContent = fs.readFileSync(promptPath, "utf-8");
     } catch {
-      // Missing prompt file is OK - use empty string
       promptContent = "";
     }
 
@@ -66,7 +65,7 @@ async function parseEngram(
       oneliners: parsed.oneliners,
     };
   } catch (error) {
-    console.error(`Error parsing engram ${manifestPath}:`, error);
+    fail(`Error parsing engram ${manifestPath}: ${error}`);
     return null;
   }
 }
@@ -109,15 +108,15 @@ export const preview = command({
     const found = findEngram(name, projectRoot);
 
     if (!found) {
-      console.error(pc.red(`Engram not found: ${name}`));
-      console.error(pc.dim("Run 'engram list' to see available engrams"));
+      fail(`Engram not found: ${name}`);
+      info("Run 'engram list' to see available engrams");
       process.exit(1);
     }
 
     const engram = await parseEngram(found.manifestPath);
 
     if (!engram) {
-      console.error(pc.red(`Failed to parse engram: ${name}`));
+      fail(`Failed to parse engram: ${name}`);
       process.exit(1);
     }
 
@@ -127,12 +126,8 @@ export const preview = command({
 
     if (!isInitialized) {
       const preamble = `# Engram: ${engram.name} [NOT INITIALIZED]\n\nThis engram's submodule has not been cloned yet.\n\n---\n\n`;
-      console.log(preamble + engram.content);
-      console.log(
-        pc.dim(
-          `\n--- End of preview ---\nRun 'engram lazy-init ${name}' to initialize this engram.`,
-        ),
-      );
+      log(preamble + engram.content);
+      info(`\n--- End of preview ---\nRun 'engram lazy-init ${name}' to initialize this engram.`);
       return;
     }
 
@@ -147,7 +142,7 @@ export const preview = command({
 
     const preamble = `# Engram: ${engram.name}\n\nBase directory: ${shortenPath(engram.directory)}\n\nEngram README:\n\n---\n\n`;
 
-    console.log(preamble + engram.content + treeSection);
-    console.log(pc.dim("\n--- End of preview ---"));
+    log(preamble + engram.content + treeSection);
+    info("\n--- End of preview ---");
   },
 });

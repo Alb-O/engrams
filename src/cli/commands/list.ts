@@ -3,6 +3,7 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import pc from "picocolors";
 import * as TOML from "@iarna/toml";
+import { info, log } from "../../logging";
 import { getModulePaths, findProjectRoot, shortenPath } from "../utils";
 import { readIndex, isSubmoduleInitialized } from "../index-ref";
 
@@ -26,11 +27,8 @@ interface EngramInfo {
   };
   children: EngramInfo[];
   depth: number;
-  /** Whether this engram is initialized (has content). For submodules, false means not cloned */
   initialized: boolean;
-  /** Whether this is from the index (lazy) rather than filesystem scan */
   fromIndex?: boolean;
-  /** Whether this is a wrapped engram (has [wrap] config) */
   isWrapped?: boolean;
 }
 
@@ -54,10 +52,6 @@ interface EngramToml {
   };
 }
 
-/**
- * Get status indicator for an engram.
- * ● = initialized, ◐ = lazy (wrapped but not cloned), ○ = not initialized
- */
 function getStatusDot(eg: { initialized: boolean; isWrapped?: boolean }): string {
   if (eg.initialized) return pc.green("●");
   if (eg.isWrapped) return pc.yellow("◐");
@@ -76,7 +70,6 @@ function parseEngramToml(tomlPath: string): {
     const content = fs.readFileSync(tomlPath, "utf-8");
     const parsed = TOML.parse(content) as EngramToml;
     
-    // Convert hyphenated TOML keys to camelCase
     const rawDisclosure = parsed["disclosure-triggers"];
     const disclosureTriggers = rawDisclosure
       ? {
@@ -109,10 +102,6 @@ function parseEngramToml(tomlPath: string): {
   }
 }
 
-/**
- * Check if a wrapped engram has been initialized.
- * Returns true if content/ directory exists (where cloned repos live).
- */
 function isWrappedEngramInitialized(engramPath: string): boolean {
   const contentDir = path.join(engramPath, "content");
   return fs.existsSync(contentDir);
@@ -242,7 +231,7 @@ function printEngramTree(
       warning = pc.red(` (parse error: ${eg.parseError})`);
     }
 
-    console.log(
+    log(
       `${prefix}${connector} ${statusDot} ${nameDisplay}${descDisplay}${triggerPart}${warning}`,
     );
 
@@ -256,9 +245,6 @@ function countEngrams(engrams: EngramInfo[]): number {
   return engrams.reduce((sum, e) => sum + 1 + countEngrams(e.children), 0);
 }
 
-/**
- * Get uninitialized engrams from the index that weren't found in filesystem scan
- */
 function getUninitializedFromIndex(
   projectRoot: string,
   existingNames: Set<string>,
@@ -353,11 +339,9 @@ export const list = command({
     const totalLocal = countEngrams(localEngrams);
 
     if (totalGlobal === 0 && totalLocal === 0) {
-      console.log(pc.dim("No engrams installed"));
+      info("No engrams installed");
       if (!projectRoot && !globalOnly) {
-        console.log(
-          pc.dim("(Not in a project directory - showing global engrams only)"),
-        );
+        info("(Not in a project directory - showing global engrams only)");
       }
       return;
     }
@@ -372,17 +356,17 @@ export const list = command({
     let printedSection = false;
 
     if (globalEngrams.length > 0 && !localOnly) {
-      console.log(
-        pc.bold("🌐 Global engrams") +
+      log(
+        pc.bold("Global engrams") +
           pc.dim(` (${shortenPath(paths.global)})`) +
-          pc.dim(` — ${totalGlobal} engram${totalGlobal === 1 ? "" : "s"}`),
+          pc.dim(` - ${totalGlobal} engram${totalGlobal === 1 ? "" : "s"}`),
       );
       if (flat) {
         const flatList = flatten(globalEngrams);
         for (const eg of flatList) {
           const statusDot = getStatusDot(eg);
           const indent = "  ".repeat(eg.depth);
-          console.log(`${indent}${statusDot} ${eg.name}`);
+          log(`${indent}${statusDot} ${eg.name}`);
         }
       } else {
         printEngramTree(globalEngrams);
@@ -391,25 +375,24 @@ export const list = command({
     }
 
     if (localEngrams.length > 0 && !globalOnly) {
-      if (printedSection) console.log("");
-      console.log(
-        pc.bold("📁 Local engrams") +
+      if (printedSection) log("");
+      log(
+        pc.bold("Local engrams") +
           pc.dim(` (${shortenPath(paths.local!)})`) +
-          pc.dim(` — ${totalLocal} engram${totalLocal === 1 ? "" : "s"}`),
+          pc.dim(` - ${totalLocal} engram${totalLocal === 1 ? "" : "s"}`),
       );
       if (flat) {
         const flatList = flatten(localEngrams);
         for (const eg of flatList) {
           const statusDot = getStatusDot(eg);
           const indent = "  ".repeat(eg.depth);
-          console.log(`${indent}${statusDot} ${eg.name}`);
+          log(`${indent}${statusDot} ${eg.name}`);
         }
       } else {
         printEngramTree(localEngrams);
       }
     }
 
-    // Legend
-    console.log(pc.dim(`\n● initialized  ◐ lazy  ○ not initialized`));
+    info(`\n● initialized  ◐ lazy  ○ not initialized`);
   },
 });

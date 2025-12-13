@@ -2,7 +2,7 @@ import { command, flag } from "cmd-ts";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import * as os from "node:os";
-import pc from "picocolors";
+import { info, success, fail } from "../../logging";
 import { installPlugin, getBundledPluginPath } from "../cache";
 import { findProjectRoot } from "../utils";
 import { configureAutoFetch, fetchIndex, indexExists } from "../index-ref";
@@ -25,8 +25,8 @@ export const init = command({
   },
   handler: async ({ global: isGlobal, force }) => {
     if (!getBundledPluginPath()) {
-      console.error(pc.red("Error: Could not find bundled plugin"));
-      console.error(pc.dim("The CLI may not be properly installed"));
+      fail("Could not find bundled plugin");
+      info("The CLI may not be properly installed");
       process.exit(1);
     }
 
@@ -40,12 +40,8 @@ export const init = command({
     } else {
       const projectRoot = findProjectRoot();
       if (!projectRoot) {
-        console.error(pc.red("Error: Not in a project directory"));
-        console.error(
-          pc.dim(
-            "Use --global to install globally, or run from a git repository",
-          ),
-        );
+        fail("Not in a project directory");
+        info("Use --global to install globally, or run from a git repository");
         process.exit(1);
       }
       targetDir = projectRoot;
@@ -54,34 +50,31 @@ export const init = command({
     const result = installPlugin(targetDir, { force });
 
     if ("error" in result) {
-      console.error(pc.red(`Error: ${result.error}`));
+      fail(result.error);
       process.exit(1);
     }
 
     if (result.installed) {
-      console.log(pc.green(`✓ Plugin installed`));
+      success("Plugin installed");
     } else {
-      console.log(pc.green(`✓ Plugin already installed`));
-      console.log(pc.dim(`  Use --force to reinstall`));
+      success("Plugin already installed");
+      info("Use --force to reinstall");
     }
 
-    console.log(pc.dim(`  ${result.path}`));
+    info(`  ${result.path}`);
 
-    // Also create .engrams directory if it doesn't exist
     const openmodulesDir = path.join(targetDir, ".engrams");
     if (!fs.existsSync(openmodulesDir)) {
       fs.mkdirSync(openmodulesDir, { recursive: true });
-      console.log(pc.dim(`  Created ${openmodulesDir}/`));
+      info(`Created ${openmodulesDir}/`);
     }
 
-    // Configure auto-fetch of engrams index for local projects
     if (!isGlobal) {
       if (configureAutoFetch(targetDir)) {
-        console.log(pc.dim("  Configured auto-fetch for refs/engrams/*"));
+        info("Configured auto-fetch for refs/engrams/*");
 
-        // Try to fetch the index if it exists on remote
         if (!indexExists(targetDir) && fetchIndex(targetDir)) {
-          console.log(pc.dim("  Fetched engram index from remote"));
+          info("Fetched engram index from remote");
         }
       }
     }

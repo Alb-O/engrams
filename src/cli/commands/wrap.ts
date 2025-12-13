@@ -1,7 +1,7 @@
 import { command, positional, option, multioption, flag, string, optional, array } from "cmd-ts";
 import * as fs from "node:fs";
 import * as path from "node:path";
-import pc from "picocolors";
+import { info, success, warn, fail, log } from "../../logging";
 import { getModulePaths, findProjectRoot, parseRepoUrl, getEngramName } from "../utils";
 import { cloneWithSparseCheckout } from "../cache";
 
@@ -217,8 +217,8 @@ export const wrap = command({
     const isLocalPath = !isRemote && (source.startsWith("/") || source.startsWith("./") || source.startsWith("../"));
 
     if (!isRemote && !isLocalPath) {
-      console.error(pc.red(`Error: Invalid source: ${source}`));
-      console.error(pc.dim("Provide a repository (owner/repo, URL) or a local path (./path, /absolute/path)"));
+      fail(`Invalid source: ${source}`);
+      info("Provide a repository (owner/repo, URL) or a local path (./path, /absolute/path)");
       process.exit(1);
     }
 
@@ -226,8 +226,8 @@ export const wrap = command({
     const engramsDir = isGlobal ? paths.global : paths.local;
 
     if (!engramsDir) {
-      console.error(pc.red("Error: Not in a project directory"));
-      console.error(pc.dim("Use --global to install globally, or run from a git repository"));
+      fail("Not in a project directory");
+      info("Use --global to install globally, or run from a git repository");
       process.exit(1);
     }
 
@@ -235,12 +235,12 @@ export const wrap = command({
 
     if (force && fs.existsSync(targetDir)) {
       fs.rmSync(targetDir, { recursive: true, force: true });
-      console.log(pc.yellow(`Removed existing engram at ${targetDir}`));
+      warn(`Removed existing engram at ${targetDir}`);
     }
 
     if (fs.existsSync(targetDir)) {
-      console.error(pc.red(`Error: Engram already exists at ${targetDir}`));
-      console.error(pc.dim("Use --force to overwrite"));
+      fail(`Engram already exists at ${targetDir}`);
+      info("Use --force to overwrite");
       process.exit(1);
     }
 
@@ -250,37 +250,34 @@ export const wrap = command({
 
     if (isRemote) {
       if (lazy) {
-        // Lazy mode: just create the directory for the manifest
-        console.log(pc.blue(`Creating lazy engram for ${parsed!.owner}/${parsed!.repo}...`));
+        info(`Creating lazy engram for ${parsed!.owner}/${parsed!.repo}...`);
         fs.mkdirSync(targetDir, { recursive: true });
       } else {
-        // Full mode: create engram directory and clone into content/
-        console.log(pc.blue(`Cloning ${parsed!.owner}/${parsed!.repo}...`));
+        info(`Cloning ${parsed!.owner}/${parsed!.repo}...`);
 
         if (sparse.length > 0) {
-          console.log(pc.dim(`Sparse patterns: ${sparse.join(", ")}`));
+          info(`Sparse patterns: ${sparse.join(", ")}`);
         }
         if (ref) {
-          console.log(pc.dim(`Ref: ${ref}`));
+          info(`Ref: ${ref}`);
         }
 
-        // Create engram directory and clone into content/ subdirectory
         fs.mkdirSync(targetDir, { recursive: true });
         const contentDir = path.join(targetDir, CONTENT_DIR);
         cloneWithSparseCheckout(parsed!.url, contentDir, { ref, sparse, noCache });
       }
     } else {
       if (lazy) {
-        console.error(pc.red("Error: --lazy flag is only valid for remote repositories"));
+        fail("--lazy flag is only valid for remote repositories");
         process.exit(1);
       }
       const absoluteSource = path.resolve(source);
       if (!fs.existsSync(absoluteSource)) {
-        console.error(pc.red(`Error: Source path does not exist: ${absoluteSource}`));
+        fail(`Source path does not exist: ${absoluteSource}`);
         process.exit(1);
       }
 
-      console.log(pc.blue(`Linking ${absoluteSource}...`));
+      info(`Linking ${absoluteSource}...`);
       const relativePath = path.relative(engramsDir, absoluteSource);
       fs.symlinkSync(relativePath, targetDir);
     }
@@ -290,8 +287,8 @@ export const wrap = command({
     const hasManifest = fs.existsSync(manifestPath);
 
     if (hasManifest) {
-      console.log(pc.green(`✓ Wrapped existing engram: ${dirName}`));
-      console.log(pc.dim(`  ${targetDir}`));
+      success(`Wrapped existing engram: ${dirName}`);
+      info(`  ${targetDir}`);
       return;
     }
 
@@ -301,24 +298,23 @@ export const wrap = command({
       `Documentation from ${parsed ? `${parsed.owner}/${parsed.repo}` : path.basename(source)}` +
       (contentPath ? ` (${contentPath}/)` : "");
 
-    // Infer triggers from name if none provided
     const inferredTriggers = triggers.length > 0 ? triggers : 
       inferredName.toLowerCase().split(/\s+/).filter(w => w.length > 2);
 
-    console.log(pc.dim(`Generating engram manifest...`));
-    console.log(pc.dim(`  Name: ${inferredName}`));
-    console.log(pc.dim(`  Description: ${inferredDescription}`));
+    info(`Generating engram manifest...`);
+    info(`  Name: ${inferredName}`);
+    info(`  Description: ${inferredDescription}`);
     if (isRemote) {
-      console.log(pc.dim(`  Remote: ${parsed!.url}`));
+      info(`  Remote: ${parsed!.url}`);
       if (ref) {
-        console.log(pc.dim(`  Ref: ${ref}`));
+        info(`  Ref: ${ref}`);
       }
       if (sparse.length > 0) {
-        console.log(pc.dim(`  Sparse: ${sparse.join(", ")}`));
+        info(`  Sparse: ${sparse.join(", ")}`);
       }
     }
     if (inferredTriggers.length > 0) {
-      console.log(pc.dim(`  Triggers: ${inferredTriggers.join(", ")}`));
+      info(`  Triggers: ${inferredTriggers.join(", ")}`);
     }
 
     const wrapConfig: WrapConfig | undefined = isRemote
@@ -348,18 +344,18 @@ export const wrap = command({
     fs.writeFileSync(gitignorePath, gitignoreContent);
 
     if (lazy) {
-      console.log(pc.green(`✓ Created lazy engram: ${dirName}`));
-      console.log(pc.dim(`  ${targetDir}`));
-      console.log("");
-      console.log(pc.dim("Run to initialize:"));
-      console.log(pc.dim(`  engram lazy-init ${dirName}`));
+      success(`Created lazy engram: ${dirName}`);
+      info(`  ${targetDir}`);
+      log("");
+      info("Run to initialize:");
+      info(`  engram lazy-init ${dirName}`);
     } else {
-      console.log(pc.green(`✓ Created engram: ${dirName}`));
-      console.log(pc.dim(`  ${targetDir}`));
-      console.log("");
-      console.log(pc.dim("You can customize the engram by editing:"));
-      console.log(pc.dim(`  ${manifestPath}`));
-      console.log(pc.dim(`  ${readmePath}`));
+      success(`Created engram: ${dirName}`);
+      info(`  ${targetDir}`);
+      log("");
+      info("You can customize the engram by editing:");
+      info(`  ${manifestPath}`);
+      info(`  ${readmePath}`);
     }
   },
 });

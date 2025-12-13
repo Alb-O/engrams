@@ -1,7 +1,7 @@
 import { command, positional, flag, option, string, optional } from "cmd-ts";
 import * as fs from "node:fs";
 import * as path from "node:path";
-import pc from "picocolors";
+import { info, success, warn, fail } from "../../logging";
 import {
   getModulePaths,
   findProjectRoot,
@@ -55,13 +55,9 @@ export const add = command({
   handler: async ({ repo, name, global: isGlobal, clone, force, noCache }) => {
     const parsed = parseRepoUrl(repo);
     if (!parsed) {
-      console.error(pc.red(`Error: Invalid repository format: ${repo}`));
-      console.error(
-        pc.dim("Formats: owner/repo, domain:owner/repo, or full URL"),
-      );
-      console.error(
-        pc.dim(`Supported domains: ${getSupportedDomains().join(", ")}`),
-      );
+      fail(`Invalid repository format: ${repo}`);
+      info(`Formats: owner/repo, domain:owner/repo, or full URL`);
+      info(`Supported domains: ${getSupportedDomains().join(", ")}`);
       process.exit(1);
     }
 
@@ -75,12 +71,8 @@ export const add = command({
     }
 
     if (!projectRoot) {
-      console.error(pc.red("Error: Not in a project directory"));
-      console.error(
-        pc.dim(
-          "Use --global to install globally, or run from a git repository",
-        ),
-      );
+      fail("Not in a project directory");
+      info("Use --global to install globally, or run from a git repository");
       process.exit(1);
     }
 
@@ -118,14 +110,12 @@ async function handleAdd({ parsed, engramName, projectRoot, targetDir, isGlobal,
     if (fs.existsSync(targetDir)) {
       fs.rmSync(targetDir, { recursive: true, force: true });
     }
-    console.log(
-      pc.yellow(`Cleaned up existing engram state for ${engramName}`),
-    );
+    warn(`Cleaned up existing engram state for ${engramName}`);
   }
 
   if (fs.existsSync(targetDir)) {
-    console.error(pc.red(`Error: Engram already exists at ${targetDir}`));
-    console.error(pc.dim("Use --force to overwrite"));
+    fail(`Engram already exists at ${targetDir}`);
+    info("Use --force to overwrite");
     process.exit(1);
   }
 
@@ -134,13 +124,11 @@ async function handleAdd({ parsed, engramName, projectRoot, targetDir, isGlobal,
     fs.mkdirSync(parentDir, { recursive: true });
   }
 
-  console.log(
-    pc.blue(`Adding ${parsed.owner}/${parsed.repo} as ${engramName}...`),
-  );
+  info(`Adding ${parsed.owner}/${parsed.repo} as ${engramName}...`);
 
   const cached = isCached(parsed.url);
   if (cached) {
-    console.log(pc.dim("Using cached repository..."));
+    info("Using cached repository...");
   }
 
   try {
@@ -152,10 +140,10 @@ async function handleAdd({ parsed, engramName, projectRoot, targetDir, isGlobal,
   } catch (error) {
     const err = error as Error & { stderr?: Buffer; status?: number };
     const errorMessage = err.message || err.stderr?.toString() || String(error);
-    console.error(pc.red("Failed to add engram:"));
-    console.error(pc.dim(errorMessage));
+    fail("Failed to add engram");
+    info(errorMessage);
     if (err.status) {
-      console.error(pc.dim(`Exit code: ${err.status}`));
+      info(`Exit code: ${err.status}`);
     }
     process.exit(1);
   }
@@ -193,7 +181,7 @@ function addAsSubmodule(
   } else {
     submoduleAddFromCache(parsed.url, relativePath, projectRoot, { force });
   }
-  console.log(pc.green(`✓ Added as submodule: ${targetDir}`));
+  success(`Added as submodule: ${targetDir}`);
   updateIndexAfterAdd(projectRoot, engramName, parsed.url);
 }
 
@@ -206,7 +194,7 @@ function cloneDirect(url: string, targetDir: string, noCache: boolean) {
   } else {
     cloneFromCache(url, targetDir);
   }
-  console.log(pc.green(`✓ Cloned to: ${targetDir}`));
+  success(`Cloned to: ${targetDir}`);
 }
 
 /**
@@ -220,13 +208,13 @@ function updateIndexAfterAdd(
   const tomlPath = path.join(projectRoot, ".engrams", engramName, "engram.toml");
 
   if (!fs.existsSync(tomlPath)) {
-    console.log(pc.dim("  No engram.toml found, skipping index update"));
+    info("No engram.toml found, skipping index update");
     return;
   }
 
   const entry = parseEngramToml(tomlPath);
   if (!entry) {
-    console.log(pc.dim("  Could not parse engram.toml, skipping index update"));
+    info("Could not parse engram.toml, skipping index update");
     return;
   }
 
@@ -236,5 +224,5 @@ function updateIndexAfterAdd(
   index[engramName] = entry;
 
   writeIndex(projectRoot, index);
-  console.log(pc.dim("  Updated refs/engrams/index"));
+  info("Updated refs/engrams/index");
 }

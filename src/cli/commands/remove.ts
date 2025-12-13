@@ -1,7 +1,7 @@
 import { command, positional, flag } from "cmd-ts";
 import * as fs from "node:fs";
 import * as path from "node:path";
-import pc from "picocolors";
+import { info, success, fail } from "../../logging";
 import { getModulePaths, findProjectRoot } from "../utils";
 
 export const remove = command({
@@ -35,23 +35,20 @@ export const remove = command({
       targetDir = path.join(paths.global, name);
     } else {
       if (!projectRoot || !paths.local) {
-        console.error(pc.red("Error: Not in a project directory"));
-        console.error(pc.dim("Use --global to remove a global engram"));
+        fail("Not in a project directory");
+        info("Use --global to remove a global engram");
         process.exit(1);
       }
       targetDir = path.join(paths.local, name);
 
-      // Check if it's a submodule using git config (more reliable than string search)
       try {
         const relativePath = path.relative(projectRoot, targetDir);
-        // git config --file .gitmodules --get-regexp returns entries for submodule paths
         const configResult = Bun.spawnSync(
           ["git", "config", "--file", ".gitmodules", "--get-regexp", "submodule\\..*\\.path"],
           { cwd: projectRoot },
         );
         if (configResult.success) {
           const output = configResult.stdout.toString();
-          // Check if relativePath appears as a value in the output
           const escapedPath = relativePath.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
           const regex = new RegExp(`\\s${escapedPath}$`, "m");
           isSubmodule = regex.test(output);
@@ -64,8 +61,8 @@ export const remove = command({
     }
 
     if (!fs.existsSync(targetDir)) {
-      console.error(pc.red(`Error: Engram not found: ${name}`));
-      console.error(pc.dim(`Looked in: ${targetDir}`));
+      fail(`Engram not found: ${name}`);
+      info(`Looked in: ${targetDir}`);
       process.exit(1);
     }
 
@@ -78,16 +75,14 @@ export const remove = command({
 
       const answer = await new Promise<string>((resolve) => {
         rl.question(
-          pc.yellow(
-            `Remove ${name}${isSubmodule ? " (submodule)" : ""}? [y/N] `,
-          ),
+          `Remove ${name}${isSubmodule ? " (submodule)" : ""}? [y/N] `,
           resolve,
         );
       });
       rl.close();
 
       if (answer.toLowerCase() !== "y") {
-        console.log(pc.dim("Cancelled"));
+        info("Cancelled");
         return;
       }
     }
@@ -109,7 +104,6 @@ export const remove = command({
         if (!rmResult.success) {
           throw new Error(`git rm failed`);
         }
-        // Clean up .git/modules
         const gitModulesPath = path.join(
           projectRoot,
           ".git",
@@ -119,17 +113,17 @@ export const remove = command({
         if (fs.existsSync(gitModulesPath)) {
           fs.rmSync(gitModulesPath, { recursive: true, force: true });
         }
-        console.log(pc.green(`✓ Removed submodule: ${name}`));
+        success(`Removed submodule: ${name}`);
       } else {
         fs.rmSync(targetDir, { recursive: true, force: true });
-        console.log(pc.green(`✓ Removed: ${name}`));
+        success(`Removed: ${name}`);
       }
     } catch (error) {
       const err = error as { message?: string; stderr?: Buffer };
       const errorMessage =
         err?.message || err?.stderr?.toString() || String(error);
-      console.error(pc.red("Failed to remove engram:"));
-      console.error(pc.dim(errorMessage));
+      fail("Failed to remove engram");
+      info(errorMessage);
       process.exit(1);
     }
   },

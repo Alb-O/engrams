@@ -5,7 +5,7 @@ import {
   positional,
   string,
 } from "cmd-ts";
-import pc from "picocolors";
+import { info, success, warn, fail, log } from "../../logging";
 import {
   getCacheDir,
   listCachedRepos,
@@ -24,25 +24,23 @@ const list = command({
     const cached = listCachedRepos();
 
     if (cached.length === 0) {
-      console.log(pc.dim("No cached repositories"));
-      console.log(pc.dim(`Cache directory: ${getCacheDir()}`));
+      info("No cached repositories");
+      info(`Cache directory: ${getCacheDir()}`);
       return;
     }
 
-    console.log(pc.bold("Cached repositories:\n"));
+    log("Cached repositories:\n");
 
     let totalSize = 0;
     for (const repo of cached) {
       totalSize += repo.size;
-      console.log(`  ${pc.cyan(repo.url)}`);
-      console.log(`    ${pc.dim(formatBytes(repo.size))}`);
+      log(`  ${repo.url}`);
+      info(`    ${formatBytes(repo.size)}`);
     }
 
-    console.log("");
-    console.log(
-      pc.dim(`Total: ${cached.length} repos, ${formatBytes(totalSize)}`),
-    );
-    console.log(pc.dim(`Cache directory: ${getCacheDir()}`));
+    log("");
+    info(`Total: ${cached.length} repos, ${formatBytes(totalSize)}`);
+    info(`Cache directory: ${getCacheDir()}`);
   },
 });
 
@@ -60,7 +58,7 @@ const clear = command({
     const cached = listCachedRepos();
 
     if (cached.length === 0) {
-      console.log(pc.dim("Cache is already empty"));
+      info("Cache is already empty");
       return;
     }
 
@@ -75,24 +73,20 @@ const clear = command({
 
       const answer = await new Promise<string>((resolve) => {
         rl.question(
-          pc.yellow(
-            `Clear ${cached.length} cached repos (${formatBytes(totalSize)})? [y/N] `,
-          ),
+          `Clear ${cached.length} cached repos (${formatBytes(totalSize)})? [y/N] `,
           resolve,
         );
       });
       rl.close();
 
       if (answer.toLowerCase() !== "y") {
-        console.log(pc.dim("Cancelled"));
+        info("Cancelled");
         return;
       }
     }
 
     clearRepoCache();
-    console.log(
-      pc.green(`✓ Cleared ${cached.length} repos (${formatBytes(totalSize)})`),
-    );
+    success(`Cleared ${cached.length} repos (${formatBytes(totalSize)})`);
   },
 });
 
@@ -104,22 +98,22 @@ const update = command({
     const cached = listCachedRepos();
 
     if (cached.length === 0) {
-      console.log(pc.dim("No cached repositories to update"));
+      info("No cached repositories to update");
       return;
     }
 
-    console.log(pc.blue(`Updating ${cached.length} cached repositories...`));
+    info(`Updating ${cached.length} cached repositories...`);
 
     for (const repo of cached) {
       try {
-        console.log(pc.dim(`  Fetching ${repo.url}...`));
+        info(`  Fetching ${repo.url}...`);
         ensureCached(repo.url, { quiet: true });
       } catch (error) {
-        console.log(pc.yellow(`  Failed to update ${repo.url}`));
+        warn(`  Failed to update ${repo.url}`);
       }
     }
 
-    console.log(pc.green(`✓ Updated ${cached.length} repos`));
+    success(`Updated ${cached.length} repos`);
   },
 });
 
@@ -136,14 +130,14 @@ const remove = command({
   handler: async ({ repo }) => {
     const parsed = parseRepoUrl(repo);
     if (!parsed) {
-      console.error(pc.red(`Error: Invalid repository format: ${repo}`));
+      fail(`Invalid repository format: ${repo}`);
       process.exit(1);
     }
 
     if (removeRepoFromCache(parsed.url)) {
-      console.log(pc.green(`✓ Removed ${parsed.url} from cache`));
+      success(`Removed ${parsed.url} from cache`);
     } else {
-      console.log(pc.yellow(`Repository not in cache: ${parsed.url}`));
+      warn(`Repository not in cache: ${parsed.url}`);
     }
   },
 });

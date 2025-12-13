@@ -1,5 +1,5 @@
 import { command, flag } from "cmd-ts";
-import pc from "picocolors";
+import { info, success, warn, fail } from "../../logging";
 import { findProjectRoot } from "../utils";
 import {
   buildIndexFromEngrams,
@@ -28,21 +28,21 @@ export const sync = command({
   handler: async ({ push, dryRun }) => {
     const projectRoot = findProjectRoot();
     if (!projectRoot) {
-      console.error(pc.red("Error: Not in a project directory"));
+      fail("Not in a project directory");
       process.exit(1);
     }
 
-    console.log(pc.blue("Building index from initialized engrams..."));
+    info("Building index from initialized engrams...");
 
     const index = buildIndexFromEngrams(projectRoot);
     const engramCount = Object.keys(index).length;
 
     if (engramCount === 0) {
-      console.log(pc.yellow("No initialized engrams found in .engrams/"));
+      warn("No initialized engrams found in .engrams/");
       process.exit(0);
     }
 
-    console.log(pc.dim(`Found ${engramCount} engram(s):`));
+    info(`Found ${engramCount} engram(s):`);
     for (const [name, entry] of Object.entries(index)) {
       const disclosureCount =
         (entry["disclosure-triggers"]?.["any-msg"]?.length || 0) +
@@ -54,18 +54,17 @@ export const sync = command({
         (entry["activation-triggers"]?.["agent-msg"]?.length || 0);
       const triggerInfo =
         disclosureCount + activationCount > 0
-          ? pc.dim(` [${disclosureCount} disclosure, ${activationCount} activation]`)
+          ? ` [${disclosureCount} disclosure, ${activationCount} activation]`
           : "";
-      console.log(`  ${pc.cyan(name)}: ${entry.name}${triggerInfo}`);
+      info(`  ${name}: ${entry.name}${triggerInfo}`);
     }
 
     if (dryRun) {
-      console.log(pc.yellow("\n[dry-run] Would write index:"));
+      warn("[dry-run] Would write index:");
       console.log(JSON.stringify(index, null, 2));
       return;
     }
 
-    // Check if index changed
     const existingIndex = readIndex(projectRoot);
     const newJson = JSON.stringify(index, null, 2);
     const existingJson = existingIndex
@@ -73,22 +72,22 @@ export const sync = command({
       : null;
 
     if (newJson === existingJson) {
-      console.log(pc.green("\n✓ Index already up to date"));
+      success("Index already up to date");
     } else {
       writeIndex(projectRoot, index);
       const verb = indexExists(projectRoot) ? "Updated" : "Created";
-      console.log(pc.green(`\n✓ ${verb} refs/engrams/index`));
+      success(`${verb} refs/engrams/index`);
     }
 
     if (push) {
-      console.log(pc.blue("\nPushing index to remote..."));
+      info("Pushing index to remote...");
       try {
         pushIndex(projectRoot);
-        console.log(pc.green("✓ Pushed to origin"));
+        success("Pushed to origin");
       } catch (error: unknown) {
         const message =
           error instanceof Error ? error.message : String(error);
-        console.error(pc.red(`Failed to push: ${message}`));
+        fail(`Failed to push: ${message}`);
         process.exit(1);
       }
     }

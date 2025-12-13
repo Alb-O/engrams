@@ -10,3 +10,6 @@ export function logWarning(message: string, ...args: unknown[]) {
 export function logError(message: string, ...args: unknown[]) {
   logger.error(message, ...args);
 }
+
+// Re-export logger methods for CLI usage
+export const { info, success, warn, error, debug, log, box, start, ready, fail } = logger;
