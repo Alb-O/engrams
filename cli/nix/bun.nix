@@ -13,6 +13,10 @@
   ...
 }:
 {
+  "@iarna/toml@2.2.5" = fetchurl {
+    url = "https://registry.npmjs.org/@iarna/toml/-/toml-2.2.5.tgz";
+    hash = "sha512-trnsAYxU3xnS1gPHPyU961coFyLkh4gAD/0zQ5mymY4yOZ+CYvsPqUbOFSw0aDM4y0tV7tiFxL/1XfXPNC6IPg==";
+  };
   "@types/bun@1.3.4" = fetchurl {
     url = "https://registry.npmjs.org/@types/bun/-/bun-1.3.4.tgz";
     hash = "sha512-EEPTKXHP+zKGPkhRLv+HI0UEX8/o+65hqARxLy8Ov5rIxMBPNTjeZww00CIihrIQGEQBYg+0roO5qOnS/7boGA==";

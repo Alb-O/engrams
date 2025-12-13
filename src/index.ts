@@ -8,6 +8,7 @@ import {
     generateFileTree,
     getDefaultModulePaths,
     logError,
+    type Module,
 } from "./helpers";
 
 const ModulesPlugin: Plugin = async (input) => {
@@ -18,6 +19,12 @@ const ModulesPlugin: Plugin = async (input) => {
 
         if (modules.length === 0) {
             return {};
+        }
+
+        // Build lookup map from toolName to module
+        const moduleByToolName = new Map<string, Module>();
+        for (const module of modules) {
+            moduleByToolName.set(module.toolName, module);
         }
 
         const triggerMatchers = buildContextTriggerMatchers(modules);
@@ -33,6 +40,27 @@ const ModulesPlugin: Plugin = async (input) => {
                 matcher.agentMsgRegexes.length > 0,
         );
         const sessionTriggers = new Map<string, Set<string>>();
+
+        /**
+         * Checks if a module's parent chain is fully visible.
+         * A module is only visible if all its ancestors are also in the active set.
+         */
+        const isParentChainActive = (toolName: string, active: Set<string>): boolean => {
+            const module = moduleByToolName.get(toolName);
+            if (!module) return true; // Unknown module, allow it
+
+            if (!module.parentToolName) {
+                // Root module - no parent constraint
+                return true;
+            }
+
+            // Check if parent is active and its chain is active
+            if (!active.has(module.parentToolName)) {
+                return false;
+            }
+
+            return isParentChainActive(module.parentToolName, active);
+        };
 
         const tools: Record<string, ReturnType<typeof tool>> = {};
 
@@ -149,8 +177,11 @@ const ModulesPlugin: Plugin = async (input) => {
                     toolsConfig[toolName] = false;
                 }
 
+                // Only enable tools that are active AND have their parent chain active
                 for (const toolName of active) {
-                    toolsConfig[toolName] = true;
+                    if (isParentChainActive(toolName, active)) {
+                        toolsConfig[toolName] = true;
+                    }
                 }
 
                 message.tools = toolsConfig;

@@ -2,18 +2,50 @@ import { command, flag } from "cmd-ts";
 import * as fs from "fs";
 import * as path from "path";
 import pc from "picocolors";
+import * as TOML from "@iarna/toml";
 import { getModulePaths, findProjectRoot } from "../utils";
 
 interface ModuleInfo {
   name: string;
+  displayName: string;
+  description: string;
   path: string;
   scope: "global" | "local";
   hasToml: boolean;
+  triggers?: {
+    anyMsg?: string[];
+    userMsg?: string[];
+    agentMsg?: string[];
+  };
+  children: ModuleInfo[];
+  depth: number;
 }
 
-function scanModules(dir: string, scope: "global" | "local"): ModuleInfo[] {
+function parseModuleToml(tomlPath: string): {
+  name?: string;
+  description?: string;
+  triggers?: { anyMsg?: string[]; userMsg?: string[]; agentMsg?: string[] };
+} | null {
+  try {
+    const content = fs.readFileSync(tomlPath, "utf-8");
+    const parsed = TOML.parse(content) as any;
+    return {
+      name: parsed.name,
+      description: parsed.description,
+      triggers: parsed.triggers,
+    };
+  } catch {
+    return null;
+  }
+}
+
+function scanModulesRecursive(
+  dir: string,
+  scope: "global" | "local",
+  depth = 0
+): ModuleInfo[] {
   const modules: ModuleInfo[] = [];
-  
+
   if (!fs.existsSync(dir)) {
     return modules;
   }
@@ -23,16 +55,102 @@ function scanModules(dir: string, scope: "global" | "local"): ModuleInfo[] {
     if (entry.isDirectory() && !entry.name.startsWith(".")) {
       const modulePath = path.join(dir, entry.name);
       const tomlPath = path.join(modulePath, "openmodule.toml");
-      modules.push({
-        name: entry.name,
-        path: modulePath,
-        scope,
-        hasToml: fs.existsSync(tomlPath),
-      });
+      const hasToml = fs.existsSync(tomlPath);
+
+      const tomlData = hasToml ? parseModuleToml(tomlPath) : null;
+
+      // Recursively scan for nested modules
+      const children = scanModulesRecursive(modulePath, scope, depth + 1);
+
+      // Only include as a module if it has openmodule.toml
+      // But still traverse for nested modules
+      if (hasToml) {
+        modules.push({
+          name: entry.name,
+          displayName: tomlData?.name || entry.name,
+          description: tomlData?.description || "",
+          path: modulePath,
+          scope,
+          hasToml,
+          triggers: tomlData?.triggers,
+          children,
+          depth,
+        });
+      } else if (children.length > 0) {
+        // Directory has no toml but contains nested modules - include children at this level
+        modules.push(...children);
+      }
     }
   }
 
   return modules;
+}
+
+function getTriggerSummary(triggers?: ModuleInfo["triggers"]): string {
+  if (!triggers) return "";
+
+  const parts: string[] = [];
+  const anyCount = triggers.anyMsg?.length || 0;
+  const userCount = triggers.userMsg?.length || 0;
+  const agentCount = triggers.agentMsg?.length || 0;
+  const total = anyCount + userCount + agentCount;
+
+  if (total === 0) return pc.green("always visible");
+
+  if (anyCount > 0) parts.push(`${anyCount} any`);
+  if (userCount > 0) parts.push(`${userCount} user`);
+  if (agentCount > 0) parts.push(`${agentCount} agent`);
+
+  return pc.dim(`${total} trigger${total === 1 ? "" : "s"}`);
+}
+
+function printModuleTree(
+  modules: ModuleInfo[],
+  prefix = "",
+  isLast = true
+): void {
+  for (let i = 0; i < modules.length; i++) {
+    const mod = modules[i];
+    const isLastItem = i === modules.length - 1;
+    const connector = isLastItem ? "└─" : "├─";
+    const childPrefix = isLastItem ? "  " : "│ ";
+
+    // Module name and display name
+    const nameDisplay =
+      mod.displayName !== mod.name
+        ? `${pc.bold(mod.name)} ${pc.dim(`(${mod.displayName})`)}`
+        : pc.bold(mod.name);
+
+    // Description (truncated if needed)
+    const maxDescLen = 50;
+    const desc = mod.description
+      ? mod.description.length > maxDescLen
+        ? mod.description.slice(0, maxDescLen - 3) + "..."
+        : mod.description
+      : "";
+    const descDisplay = desc ? pc.dim(` - ${desc}`) : "";
+
+    // Trigger summary
+    const triggerDisplay = getTriggerSummary(mod.triggers);
+    const triggerPart = triggerDisplay ? ` [${triggerDisplay}]` : "";
+
+    // Warning if missing toml
+    const warning = !mod.hasToml ? pc.yellow(" (missing openmodule.toml)") : "";
+
+    console.log(`${prefix}${connector} ${nameDisplay}${descDisplay}${triggerPart}${warning}`);
+
+    // Print children with updated prefix
+    if (mod.children.length > 0) {
+      printModuleTree(mod.children, prefix + childPrefix, isLastItem);
+    }
+  }
+}
+
+function countModules(modules: ModuleInfo[]): number {
+  return modules.reduce(
+    (sum, m) => sum + 1 + countModules(m.children),
+    0
+  );
 }
 
 export const list = command({
@@ -49,50 +167,82 @@ export const list = command({
       short: "l",
       description: "Show only local modules",
     }),
+    flat: flag({
+      long: "flat",
+      short: "f",
+      description: "Show flat list without hierarchy",
+    }),
   },
-  handler: async ({ global: globalOnly, local: localOnly }) => {
+  handler: async ({ global: globalOnly, local: localOnly, flat }) => {
     const projectRoot = findProjectRoot();
     const paths = getModulePaths(projectRoot || undefined);
 
-    const modules: ModuleInfo[] = [];
+    let globalModules: ModuleInfo[] = [];
+    let localModules: ModuleInfo[] = [];
 
     if (!localOnly) {
-      modules.push(...scanModules(paths.global, "global"));
+      globalModules = scanModulesRecursive(paths.global, "global");
     }
 
     if (!globalOnly && paths.local) {
-      modules.push(...scanModules(paths.local, "local"));
+      localModules = scanModulesRecursive(paths.local, "local");
     }
 
-    if (modules.length === 0) {
+    const totalGlobal = countModules(globalModules);
+    const totalLocal = countModules(localModules);
+
+    if (totalGlobal === 0 && totalLocal === 0) {
       console.log(pc.dim("No modules installed"));
       if (!projectRoot && !globalOnly) {
-        console.log(pc.dim("(Not in a project directory - showing global modules only)"));
+        console.log(
+          pc.dim("(Not in a project directory - showing global modules only)")
+        );
       }
       return;
     }
 
-    // Group by scope
-    const globalModules = modules.filter((m) => m.scope === "global");
-    const localModules = modules.filter((m) => m.scope === "local");
+    // Flatten helper for --flat flag
+    const flatten = (modules: ModuleInfo[]): ModuleInfo[] => {
+      return modules.flatMap((m) => [
+        { ...m, children: [] },
+        ...flatten(m.children),
+      ]);
+    };
 
     if (globalModules.length > 0 && !localOnly) {
-      console.log(pc.bold("\nGlobal modules") + pc.dim(` (${paths.global})`));
-      for (const mod of globalModules) {
-        const status = mod.hasToml ? pc.green("✓") : pc.yellow("?");
-        console.log(`  ${status} ${mod.name}`);
+      console.log(
+        pc.bold("\n🌐 Global modules") +
+          pc.dim(` (${paths.global})`) +
+          pc.dim(` — ${totalGlobal} module${totalGlobal === 1 ? "" : "s"}`)
+      );
+      if (flat) {
+        const flatList = flatten(globalModules);
+        for (const mod of flatList) {
+          const indent = "  ".repeat(mod.depth);
+          console.log(`${indent}${mod.name}`);
+        }
+      } else {
+        printModuleTree(globalModules);
       }
     }
 
     if (localModules.length > 0 && !globalOnly) {
-      console.log(pc.bold("\nLocal modules") + pc.dim(` (${paths.local})`));
-      for (const mod of localModules) {
-        const status = mod.hasToml ? pc.green("✓") : pc.yellow("?");
-        console.log(`  ${status} ${mod.name}`);
+      console.log(
+        pc.bold("\n📁 Local modules") +
+          pc.dim(` (${paths.local})`) +
+          pc.dim(` — ${totalLocal} module${totalLocal === 1 ? "" : "s"}`)
+      );
+      if (flat) {
+        const flatList = flatten(localModules);
+        for (const mod of flatList) {
+          const indent = "  ".repeat(mod.depth);
+          console.log(`${indent}${mod.name}`);
+        }
+      } else {
+        printModuleTree(localModules);
       }
     }
 
     console.log("");
-    console.log(pc.dim(`${pc.green("✓")} = has openmodule.toml, ${pc.yellow("?")} = missing openmodule.toml`));
   },
 });

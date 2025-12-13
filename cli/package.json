@@ -12,6 +12,7 @@
     "test": "bun test"
   },
   "dependencies": {
+    "@iarna/toml": "^2.2.5",
     "cmd-ts": "^0.13.0",
     "picocolors": "^1.1.1"
   },

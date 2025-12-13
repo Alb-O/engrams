@@ -27,6 +27,10 @@ export interface Module {
         /** Triggers that only match agent messages */
         agentMsg?: string[];
     };
+    /** Tool name of the parent module (if this is a nested module) */
+    parentToolName?: string;
+    /** Tool names of direct child modules */
+    childToolNames?: string[];
 }
 
 /** Compiled matcher derived from a module's triggers */
@@ -419,6 +423,45 @@ function normalizeBasePaths(basePaths: unknown): string[] {
     return [];
 }
 
+/**
+ * Establishes parent-child relationships between modules based on directory hierarchy.
+ * A module is a child of another if its directory is a descendant of the parent's directory.
+ * Only the closest ancestor is set as the parent.
+ */
+function establishModuleHierarchy(modules: Module[]): void {
+    // Sort by directory depth (shallowest first) to ensure parents are processed before children
+    const sortedByDepth = [...modules].sort(
+        (a, b) => a.directory.split(sep).length - b.directory.split(sep).length
+    );
+
+    // Map from directory to module for quick lookup
+    const dirToModule = new Map<string, Module>();
+    for (const module of sortedByDepth) {
+        dirToModule.set(module.directory, module);
+    }
+
+    // For each module, find its closest ancestor that is also a module
+    for (const module of sortedByDepth) {
+        let currentDir = dirname(module.directory);
+
+        while (currentDir && currentDir !== dirname(currentDir)) {
+            const parentModule = dirToModule.get(currentDir);
+            if (parentModule) {
+                // Found the closest parent
+                module.parentToolName = parentModule.toolName;
+
+                // Add this module to parent's children
+                if (!parentModule.childToolNames) {
+                    parentModule.childToolNames = [];
+                }
+                parentModule.childToolNames.push(module.toolName);
+                break;
+            }
+            currentDir = dirname(currentDir);
+        }
+    }
+}
+
 export async function discoverModules(basePaths: unknown): Promise<Module[]> {
     const paths = normalizeBasePaths(basePaths);
     if (paths.length === 0) {
@@ -470,6 +513,9 @@ export async function discoverModules(basePaths: unknown): Promise<Module[]> {
     if (duplicates.length > 0) {
         logWarning(`Duplicate tool names detected: ${duplicates.join(", ")}`);
     }
+
+    // Establish parent-child relationships based on directory hierarchy
+    establishModuleHierarchy(modules);
 
     return modules;
 }

@@ -140,3 +140,50 @@ node_modules/
 ```
 
 The `openmodule.toml`, `.ignore`, and `.oneliner` files are excluded from listings by default.
+
+## Nested Modules
+
+Modules can contain other modules by placing `openmodule.toml` files in subdirectories. The directory hierarchy defines the logical organization—no additional configuration is needed.
+
+```
+parent-module/
+├── openmodule.toml           # Parent module
+├── README.md
+└── child-module/
+    ├── openmodule.toml       # Nested child module
+    └── README.md
+```
+
+### Visibility Rules
+
+Nested modules follow a strict visibility constraint: **a child module is only visible when its parent module is visible**. This creates a natural progressive discovery flow:
+
+1. Parent module becomes visible (via trigger match or always-visible)
+2. Child modules can now become visible (via their own triggers or always-visible)
+3. Grandchildren require both parent and grandparent to be visible, etc.
+
+This prevents child modules from appearing in isolation without their parent context.
+
+### Tool Naming
+
+Nested modules get tool names that reflect their full path:
+
+- `parent-module/openmodule.toml` → `openmodule_parent_module`
+- `parent-module/child-module/openmodule.toml` → `openmodule_parent_module_child_module`
+- `parent-module/child-module/grandchild/openmodule.toml` → `openmodule_parent_module_child_module_grandchild`
+
+### Example: Layered Documentation
+
+```
+docs/
+├── openmodule.toml           # triggers: ["documentation", "docs"]
+├── README.md                 # General documentation guidelines
+├── api/
+│   ├── openmodule.toml       # triggers: ["api", "endpoint"]
+│   └── README.md             # API documentation specifics
+└── tutorials/
+    ├── openmodule.toml       # triggers: ["tutorial", "guide"]
+    └── README.md             # Tutorial writing guidelines
+```
+
+When a user mentions "documentation", the parent `docs` module becomes visible. If they then mention "api", the `docs/api` child module also becomes visible. The `tutorials` module remains hidden until its trigger matches.
