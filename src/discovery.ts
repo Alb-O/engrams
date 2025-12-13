@@ -255,7 +255,14 @@ interface IndexEntry {
   version?: string;
   /** URL for submodule-based engrams */
   url?: string;
-  triggers?: {
+  /** Disclosure triggers - reveal name/description to agent */
+  "disclosure-triggers"?: {
+    "any-msg"?: string[];
+    "user-msg"?: string[];
+    "agent-msg"?: string[];
+  };
+  /** Activation triggers - full immediate activation */
+  "activation-triggers"?: {
     "any-msg"?: string[];
     "user-msg"?: string[];
     "agent-msg"?: string[];
@@ -350,17 +357,27 @@ git submodule update --init ${engramPath}
       url: entry.url,
     };
 
-    // Convert triggers
-    if (entry.triggers) {
-      engram.triggers = {};
-      if (entry.triggers["any-msg"]) {
-        engram.triggers.anyMsg = entry.triggers["any-msg"];
+    // Convert disclosure triggers
+    if (entry["disclosure-triggers"]) {
+      const dt = entry["disclosure-triggers"];
+      if (dt["any-msg"]?.length || dt["user-msg"]?.length || dt["agent-msg"]?.length) {
+        engram.disclosureTriggers = {
+          anyMsg: dt["any-msg"],
+          userMsg: dt["user-msg"],
+          agentMsg: dt["agent-msg"],
+        };
       }
-      if (entry.triggers["user-msg"]) {
-        engram.triggers.userMsg = entry.triggers["user-msg"];
-      }
-      if (entry.triggers["agent-msg"]) {
-        engram.triggers.agentMsg = entry.triggers["agent-msg"];
+    }
+
+    // Convert activation triggers
+    if (entry["activation-triggers"]) {
+      const at = entry["activation-triggers"];
+      if (at["any-msg"]?.length || at["user-msg"]?.length || at["agent-msg"]?.length) {
+        engram.activationTriggers = {
+          anyMsg: at["any-msg"],
+          userMsg: at["user-msg"],
+          agentMsg: at["agent-msg"],
+        };
       }
     }
 

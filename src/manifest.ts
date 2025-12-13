@@ -2,13 +2,23 @@ import * as TOML from "@iarna/toml";
 import { promises as fs } from "fs";
 import { basename, dirname, join, relative, sep } from "path";
 import { z } from "zod";
-import type { Engram } from "./types";
+import type { Engram, TriggerConfig } from "./types";
 import { logWarning, logError } from "./logging";
 
 /** Manifest filename at engram root */
 export const MANIFEST_FILENAME = "engram.toml";
 /** Default prompt file relative to engram root */
 const DEFAULT_PROMPT_PATH = "README.md";
+
+/** Schema for trigger configuration (shared between disclosure and activation) */
+const TriggerConfigSchema = z.object({
+  /** Triggers that match any message (user or agent) */
+  "any-msg": z.array(z.string()).optional(),
+  /** Triggers that only match user messages */
+  "user-msg": z.array(z.string()).optional(),
+  /** Triggers that only match agent messages */
+  "agent-msg": z.array(z.string()).optional(),
+});
 
 const EngramManifestSchema = z.object({
   name: z.string().min(1, "Name cannot be empty"),
@@ -19,17 +29,16 @@ const EngramManifestSchema = z.object({
   license: z.string().optional(),
   /** Relative path to prompt file from engram root. Defaults to README.md */
   prompt: z.string().optional(),
-  /** Trigger configuration for progressive engram discovery */
-  triggers: z
-    .object({
-      /** Triggers that match any message (user or agent) */
-      "any-msg": z.array(z.string()).optional(),
-      /** Triggers that only match user messages */
-      "user-msg": z.array(z.string()).optional(),
-      /** Triggers that only match agent messages */
-      "agent-msg": z.array(z.string()).optional(),
-    })
-    .optional(),
+  /**
+   * Disclosure triggers reveal the engram's name and description to the agent.
+   * The agent can then decide whether to activate it.
+   */
+  "disclosure-triggers": TriggerConfigSchema.optional(),
+  /**
+   * Activation triggers immediately perform a full activation of the engram.
+   * The engram content is injected without requiring agent action.
+   */
+  "activation-triggers": TriggerConfigSchema.optional(),
   /** Configuration for wrapped external repositories */
   wrap: z
     .object({
@@ -96,6 +105,25 @@ export function generateToolName(engramPath: string, baseDir?: string): string {
   return `engram_${components.join("_").replace(/-/g, "_")}`;
 }
 
+/** Convert TOML trigger config to internal TriggerConfig format */
+function parseTriggerConfig(
+  config: z.infer<typeof TriggerConfigSchema> | undefined,
+): TriggerConfig | undefined {
+  if (!config) return undefined;
+
+  const hasAny = (config["any-msg"]?.length ?? 0) > 0;
+  const hasUser = (config["user-msg"]?.length ?? 0) > 0;
+  const hasAgent = (config["agent-msg"]?.length ?? 0) > 0;
+
+  if (!hasAny && !hasUser && !hasAgent) return undefined;
+
+  return {
+    anyMsg: config["any-msg"],
+    userMsg: config["user-msg"],
+    agentMsg: config["agent-msg"],
+  };
+}
+
 /**
  * Parses an engram from its manifest file.
  * @param manifestPath - Path to the engram.toml file
@@ -137,11 +165,12 @@ export async function parseEngram(
       logWarning(`Missing prompt file: ${promptPath}`);
     }
 
-    const triggers = parsed.data.triggers;
-    const hasTriggers =
-      (triggers?.["any-msg"]?.length ?? 0) > 0 ||
-      (triggers?.["user-msg"]?.length ?? 0) > 0 ||
-      (triggers?.["agent-msg"]?.length ?? 0) > 0;
+    const disclosureTriggers = parseTriggerConfig(
+      parsed.data["disclosure-triggers"],
+    );
+    const activationTriggers = parseTriggerConfig(
+      parsed.data["activation-triggers"],
+    );
 
     return {
       name: parsed.data.name,
@@ -149,13 +178,8 @@ export async function parseEngram(
       toolName: generateToolName(manifestPath, baseDir),
       description: parsed.data.description,
       allowedTools: parsed.data["allowed-tools"],
-      triggers: hasTriggers
-        ? {
-            anyMsg: triggers?.["any-msg"],
-            userMsg: triggers?.["user-msg"],
-            agentMsg: triggers?.["agent-msg"],
-          }
-        : undefined,
+      disclosureTriggers,
+      activationTriggers,
       wrap: parsed.data.wrap,
       oneliners: parsed.data.oneliners,
       metadata: parsed.data.metadata,

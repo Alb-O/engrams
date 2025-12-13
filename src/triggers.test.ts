@@ -35,7 +35,7 @@ describe("triggers", () => {
           description: "Docs",
           content: "docs",
           manifestPath: "/tmp/docs/engram.toml",
-          triggers: { userMsg: ["docstring{s,}"] },
+          disclosureTriggers: { userMsg: ["docstring{s,}"] },
         },
         {
           name: "AlwaysOn",
@@ -56,14 +56,14 @@ describe("triggers", () => {
       const text = "Need docstrings for this module";
       const triggered = matchers
         .filter((matcher) =>
-          matcher.userMsgRegexes.some((regex) => regex.test(text)),
+          matcher.disclosure.userMsgRegexes.some((regex) => regex.test(text)),
         )
         .map((matcher) => matcher.toolName);
 
       expect(triggered).toContain("engram_docs");
     });
 
-    it("builds matchers with separate regex arrays for each trigger type", () => {
+    it("builds matchers with separate regex arrays for disclosure triggers", () => {
       const engrams: Engram[] = [
         {
           name: "FileDetector",
@@ -72,7 +72,7 @@ describe("triggers", () => {
           description: "Detects file types from any message",
           content: "detector",
           manifestPath: "/tmp/file-detector/engram.toml",
-          triggers: { anyMsg: [".pdf", "pdf file"] },
+          disclosureTriggers: { anyMsg: [".pdf", "pdf file"] },
         },
         {
           name: "UserOnly",
@@ -81,7 +81,7 @@ describe("triggers", () => {
           description: "Only triggers on user messages",
           content: "user only",
           manifestPath: "/tmp/user-only/engram.toml",
-          triggers: { userMsg: ["help me"] },
+          disclosureTriggers: { userMsg: ["help me"] },
         },
         {
           name: "AgentOnly",
@@ -90,7 +90,7 @@ describe("triggers", () => {
           description: "Only triggers on agent messages",
           content: "agent only",
           manifestPath: "/tmp/agent-only/engram.toml",
-          triggers: { agentMsg: ["found error"] },
+          disclosureTriggers: { agentMsg: ["found error"] },
         },
       ];
 
@@ -106,20 +106,20 @@ describe("triggers", () => {
         (m) => m.toolName === "engram_agent_only",
       );
 
-      expect(fileDetector?.anyMsgRegexes.length).toBeGreaterThan(0);
-      expect(fileDetector?.userMsgRegexes.length).toBe(0);
-      expect(fileDetector?.agentMsgRegexes.length).toBe(0);
+      expect(fileDetector?.disclosure.anyMsgRegexes.length).toBeGreaterThan(0);
+      expect(fileDetector?.disclosure.userMsgRegexes.length).toBe(0);
+      expect(fileDetector?.disclosure.agentMsgRegexes.length).toBe(0);
 
-      expect(userOnly?.anyMsgRegexes.length).toBe(0);
-      expect(userOnly?.userMsgRegexes.length).toBeGreaterThan(0);
-      expect(userOnly?.agentMsgRegexes.length).toBe(0);
+      expect(userOnly?.disclosure.anyMsgRegexes.length).toBe(0);
+      expect(userOnly?.disclosure.userMsgRegexes.length).toBeGreaterThan(0);
+      expect(userOnly?.disclosure.agentMsgRegexes.length).toBe(0);
 
-      expect(agentOnly?.anyMsgRegexes.length).toBe(0);
-      expect(agentOnly?.userMsgRegexes.length).toBe(0);
-      expect(agentOnly?.agentMsgRegexes.length).toBeGreaterThan(0);
+      expect(agentOnly?.disclosure.anyMsgRegexes.length).toBe(0);
+      expect(agentOnly?.disclosure.userMsgRegexes.length).toBe(0);
+      expect(agentOnly?.disclosure.agentMsgRegexes.length).toBeGreaterThan(0);
     });
 
-    it("trigger arrays control which text source is matched", () => {
+    it("disclosure trigger arrays control which text source is matched", () => {
       const engrams: Engram[] = [
         {
           name: "AnyMsg",
@@ -128,7 +128,7 @@ describe("triggers", () => {
           description: "Triggers on any message",
           content: "any msg",
           manifestPath: "/tmp/any-msg/engram.toml",
-          triggers: { anyMsg: ["detected pattern"] },
+          disclosureTriggers: { anyMsg: ["detected pattern"] },
         },
         {
           name: "UserOnly",
@@ -137,7 +137,7 @@ describe("triggers", () => {
           description: "Only triggers on user messages",
           content: "user only",
           manifestPath: "/tmp/user-only/engram.toml",
-          triggers: { userMsg: ["detected pattern"] },
+          disclosureTriggers: { userMsg: ["detected pattern"] },
         },
         {
           name: "AgentOnly",
@@ -146,7 +146,7 @@ describe("triggers", () => {
           description: "Only triggers on agent messages",
           content: "agent only",
           manifestPath: "/tmp/agent-only/engram.toml",
-          triggers: { agentMsg: ["detected pattern"] },
+          disclosureTriggers: { agentMsg: ["detected pattern"] },
         },
       ];
 
@@ -181,15 +181,15 @@ describe("triggers", () => {
       // Check which matchers would trigger based on their trigger type
       const triggered = new Set<string>();
       for (const matcher of matchers) {
-        if (matcher.anyMsgRegexes.some((regex) => regex.test(allText))) {
+        if (matcher.disclosure.anyMsgRegexes.some((regex) => regex.test(allText))) {
           triggered.add(matcher.toolName);
           continue;
         }
-        if (matcher.userMsgRegexes.some((regex) => regex.test(userText))) {
+        if (matcher.disclosure.userMsgRegexes.some((regex) => regex.test(userText))) {
           triggered.add(matcher.toolName);
           continue;
         }
-        if (matcher.agentMsgRegexes.some((regex) => regex.test(agentText))) {
+        if (matcher.disclosure.agentMsgRegexes.some((regex) => regex.test(agentText))) {
           triggered.add(matcher.toolName);
         }
       }
@@ -202,7 +202,7 @@ describe("triggers", () => {
       expect(triggered.has("engram_agent_only")).toBe(true);
     });
 
-    it("user-msg triggers match when pattern is in user text", () => {
+    it("user-msg disclosure triggers match when pattern is in user text", () => {
       const engrams: Engram[] = [
         {
           name: "AnyMsg",
@@ -211,7 +211,7 @@ describe("triggers", () => {
           description: "Triggers on any message",
           content: "any msg",
           manifestPath: "/tmp/any-msg/engram.toml",
-          triggers: { anyMsg: ["user phrase"] },
+          disclosureTriggers: { anyMsg: ["user phrase"] },
         },
         {
           name: "UserOnly",
@@ -220,7 +220,7 @@ describe("triggers", () => {
           description: "Only triggers on user messages",
           content: "user only",
           manifestPath: "/tmp/user-only/engram.toml",
-          triggers: { userMsg: ["user phrase"] },
+          disclosureTriggers: { userMsg: ["user phrase"] },
         },
         {
           name: "AgentOnly",
@@ -229,7 +229,7 @@ describe("triggers", () => {
           description: "Only triggers on agent messages",
           content: "agent only",
           manifestPath: "/tmp/agent-only/engram.toml",
-          triggers: { agentMsg: ["user phrase"] },
+          disclosureTriggers: { agentMsg: ["user phrase"] },
         },
       ];
 
@@ -260,15 +260,15 @@ describe("triggers", () => {
 
       const triggered = new Set<string>();
       for (const matcher of matchers) {
-        if (matcher.anyMsgRegexes.some((regex) => regex.test(allText))) {
+        if (matcher.disclosure.anyMsgRegexes.some((regex) => regex.test(allText))) {
           triggered.add(matcher.toolName);
           continue;
         }
-        if (matcher.userMsgRegexes.some((regex) => regex.test(userText))) {
+        if (matcher.disclosure.userMsgRegexes.some((regex) => regex.test(userText))) {
           triggered.add(matcher.toolName);
           continue;
         }
-        if (matcher.agentMsgRegexes.some((regex) => regex.test(agentText))) {
+        if (matcher.disclosure.agentMsgRegexes.some((regex) => regex.test(agentText))) {
           triggered.add(matcher.toolName);
         }
       }
@@ -278,6 +278,157 @@ describe("triggers", () => {
       expect(triggered.has("engram_user_only")).toBe(true);
       // agent-only should NOT trigger (pattern is not in agent text)
       expect(triggered.has("engram_agent_only")).toBe(false);
+    });
+
+    it("activation triggers are separate from disclosure triggers", () => {
+      const engrams: Engram[] = [
+        {
+          name: "DisclosureOnly",
+          directory: "/tmp/disclosure",
+          toolName: "engram_disclosure",
+          description: "Only has disclosure triggers",
+          content: "disclosure only",
+          manifestPath: "/tmp/disclosure/engram.toml",
+          disclosureTriggers: { userMsg: ["show me"] },
+        },
+        {
+          name: "ActivationOnly",
+          directory: "/tmp/activation",
+          toolName: "engram_activation",
+          description: "Only has activation triggers",
+          content: "activation only",
+          manifestPath: "/tmp/activation/engram.toml",
+          activationTriggers: { userMsg: ["activate now"] },
+        },
+        {
+          name: "Both",
+          directory: "/tmp/both",
+          toolName: "engram_both",
+          description: "Has both trigger types",
+          content: "both",
+          manifestPath: "/tmp/both/engram.toml",
+          disclosureTriggers: { userMsg: ["reveal"] },
+          activationTriggers: { userMsg: ["execute"] },
+        },
+      ];
+
+      const matchers = buildContextTriggerMatchers(engrams);
+
+      const disclosureOnly = matchers.find(
+        (m) => m.toolName === "engram_disclosure",
+      );
+      const activationOnly = matchers.find(
+        (m) => m.toolName === "engram_activation",
+      );
+      const both = matchers.find((m) => m.toolName === "engram_both");
+
+      // Disclosure only - has disclosure, no activation
+      expect(disclosureOnly?.disclosure.userMsgRegexes.length).toBeGreaterThan(0);
+      expect(disclosureOnly?.activation.userMsgRegexes.length).toBe(0);
+      expect(disclosureOnly?.alwaysVisible).toBe(false);
+
+      // Activation only - no disclosure, has activation
+      expect(activationOnly?.disclosure.userMsgRegexes.length).toBe(0);
+      expect(activationOnly?.activation.userMsgRegexes.length).toBeGreaterThan(0);
+      expect(activationOnly?.alwaysVisible).toBe(false);
+
+      // Both - has both
+      expect(both?.disclosure.userMsgRegexes.length).toBeGreaterThan(0);
+      expect(both?.activation.userMsgRegexes.length).toBeGreaterThan(0);
+      expect(both?.alwaysVisible).toBe(false);
+    });
+
+    it("empty trigger arrays do not trigger", () => {
+      const engrams: Engram[] = [
+        {
+          name: "EmptyArrays",
+          directory: "/tmp/empty",
+          toolName: "engram_empty",
+          description: "Has empty trigger arrays",
+          content: "empty",
+          manifestPath: "/tmp/empty/engram.toml",
+          disclosureTriggers: { userMsg: [], anyMsg: [], agentMsg: [] },
+        },
+        {
+          name: "NoTriggers",
+          directory: "/tmp/none",
+          toolName: "engram_none",
+          description: "Has no triggers at all",
+          content: "none",
+          manifestPath: "/tmp/none/engram.toml",
+        },
+      ];
+
+      const matchers = buildContextTriggerMatchers(engrams);
+
+      const emptyArrays = matchers.find((m) => m.toolName === "engram_empty");
+      const noTriggers = matchers.find((m) => m.toolName === "engram_none");
+
+      // Empty arrays should result in no regexes and be always visible
+      expect(emptyArrays?.disclosure.anyMsgRegexes.length).toBe(0);
+      expect(emptyArrays?.disclosure.userMsgRegexes.length).toBe(0);
+      expect(emptyArrays?.disclosure.agentMsgRegexes.length).toBe(0);
+      expect(emptyArrays?.disclosure.alwaysMatch).toBe(false);
+      expect(emptyArrays?.alwaysVisible).toBe(true);
+
+      // No triggers should also be always visible
+      expect(noTriggers?.alwaysVisible).toBe(true);
+    });
+
+    it("star wildcard always triggers", () => {
+      const engrams: Engram[] = [
+        {
+          name: "StarDisclosure",
+          directory: "/tmp/star-disclosure",
+          toolName: "engram_star_disclosure",
+          description: "Star wildcard in disclosure",
+          content: "star disclosure",
+          manifestPath: "/tmp/star-disclosure/engram.toml",
+          disclosureTriggers: { userMsg: ["*"] },
+        },
+        {
+          name: "StarActivation",
+          directory: "/tmp/star-activation",
+          toolName: "engram_star_activation",
+          description: "Star wildcard in activation",
+          content: "star activation",
+          manifestPath: "/tmp/star-activation/engram.toml",
+          activationTriggers: { anyMsg: ["*"] },
+        },
+        {
+          name: "StarMixed",
+          directory: "/tmp/star-mixed",
+          toolName: "engram_star_mixed",
+          description: "Star with other patterns",
+          content: "star mixed",
+          manifestPath: "/tmp/star-mixed/engram.toml",
+          disclosureTriggers: { userMsg: ["*", "other pattern"] },
+        },
+      ];
+
+      const matchers = buildContextTriggerMatchers(engrams);
+
+      const starDisclosure = matchers.find(
+        (m) => m.toolName === "engram_star_disclosure",
+      );
+      const starActivation = matchers.find(
+        (m) => m.toolName === "engram_star_activation",
+      );
+      const starMixed = matchers.find(
+        (m) => m.toolName === "engram_star_mixed",
+      );
+
+      // Star disclosure should have alwaysMatch=true
+      expect(starDisclosure?.disclosure.alwaysMatch).toBe(true);
+      expect(starDisclosure?.alwaysVisible).toBe(false); // Has triggers, not always visible
+
+      // Star activation should have alwaysMatch=true
+      expect(starActivation?.activation.alwaysMatch).toBe(true);
+      expect(starActivation?.alwaysVisible).toBe(false);
+
+      // Star mixed should have alwaysMatch=true and also compile other patterns
+      expect(starMixed?.disclosure.alwaysMatch).toBe(true);
+      expect(starMixed?.disclosure.userMsgRegexes.length).toBeGreaterThan(0);
     });
   });
 });

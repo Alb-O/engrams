@@ -9,6 +9,8 @@ import {
   getDefaultEngramPaths,
   logError,
   logWarning,
+  type CompiledTriggerRegexes,
+  type ContextTriggerMatcher,
   type Engram,
 } from "./helpers";
 
@@ -21,6 +23,51 @@ function shortenPath(filePath: string): string {
     return "~" + filePath.slice(home.length);
   }
   return filePath;
+}
+
+/** Check if compiled regexes have any patterns (or always match) */
+function hasRegexes(regexes: CompiledTriggerRegexes): boolean {
+  return (
+    regexes.alwaysMatch ||
+    regexes.anyMsgRegexes.length > 0 ||
+    regexes.userMsgRegexes.length > 0 ||
+    regexes.agentMsgRegexes.length > 0
+  );
+}
+
+/** Check if text matches any of the compiled trigger regexes */
+function matchesTriggers(
+  regexes: CompiledTriggerRegexes,
+  userText: string,
+  agentText: string,
+  allText: string,
+): boolean {
+  // If alwaysMatch is set (bare "*" wildcard), always trigger
+  if (regexes.alwaysMatch) {
+    return true;
+  }
+  // Check any-msg triggers against all text
+  if (
+    allText.trim() &&
+    regexes.anyMsgRegexes.some((regex) => regex.test(allText))
+  ) {
+    return true;
+  }
+  // Check user-msg triggers against user text only
+  if (
+    userText.trim() &&
+    regexes.userMsgRegexes.some((regex) => regex.test(userText))
+  ) {
+    return true;
+  }
+  // Check agent-msg triggers against agent text only
+  if (
+    agentText.trim() &&
+    regexes.agentMsgRegexes.some((regex) => regex.test(agentText))
+  ) {
+    return true;
+  }
+  return false;
 }
 
 const EngramsPlugin: Plugin = async (input) => {
@@ -46,30 +93,32 @@ const EngramsPlugin: Plugin = async (input) => {
         .filter((matcher) => matcher.alwaysVisible)
         .map((matcher) => matcher.toolName),
     );
+    // Matchers that have either disclosure or activation triggers
     const matchableTriggers = triggerMatchers.filter(
       (matcher) =>
-        matcher.anyMsgRegexes.length > 0 ||
-        matcher.userMsgRegexes.length > 0 ||
-        matcher.agentMsgRegexes.length > 0,
+        hasRegexes(matcher.disclosure) || hasRegexes(matcher.activation),
     );
-    const sessionTriggers = new Map<string, Set<string>>();
+    // Track disclosed tools per session (tool visible, agent can call)
+    const sessionDisclosed = new Map<string, Set<string>>();
+    // Track activated tools per session (already auto-executed)
+    const sessionActivated = new Map<string, Set<string>>();
     const warnedUnknownTools = new Set<string>();
 
     /**
      * Checks if an engram's parent chain is fully visible.
-     * An engram is only visible if all its ancestors are also in the active set.
+     * An engram is only visible if all its ancestors are also in the disclosed set.
      * Returns false for unknown tool names to prevent activation of undeclared tools.
      */
-    const isParentChainActive = (
+    const isParentChainDisclosed = (
       toolName: string,
-      active: Set<string>,
+      disclosed: Set<string>,
     ): boolean => {
       const engram = engramByToolName.get(toolName);
       if (!engram) {
         // Unknown tool name - reject and warn once
         if (!warnedUnknownTools.has(toolName)) {
           warnedUnknownTools.add(toolName);
-          logWarning(`Unknown tool name in active set: ${toolName}`);
+          logWarning(`Unknown tool name in disclosed set: ${toolName}`);
         }
         return false;
       }
@@ -79,12 +128,35 @@ const EngramsPlugin: Plugin = async (input) => {
         return true;
       }
 
-      // Check if parent is active and its chain is active
-      if (!active.has(engram.parentToolName)) {
+      // Check if parent is disclosed and its chain is disclosed
+      if (!disclosed.has(engram.parentToolName)) {
         return false;
       }
 
-      return isParentChainActive(engram.parentToolName, active);
+      return isParentChainDisclosed(engram.parentToolName, disclosed);
+    };
+
+    /**
+     * Execute an engram's content injection (used for activation triggers).
+     * Returns the content that should be injected.
+     */
+    const getEngramContent = async (engram: Engram): Promise<string> => {
+      // For lazy engrams, skip file tree (directory is empty) and use stored content
+      if (engram.lazy) {
+        const preamble = `# Engram: ${engram.name} [NOT INITIALIZED]\n\nThis engram's submodule has not been cloned yet.\n\n---\n\n`;
+        return `${preamble}${engram.content}`;
+      }
+
+      const fileTree = await generateFileTree(engram.directory, {
+        includeMetadata: true,
+        manifestOneliners: engram.oneliners,
+      });
+      const treeSection = fileTree
+        ? `\n\n## Available Resources:\n\`\`\`\n${fileTree}\n\`\`\``
+        : "";
+
+      const preamble = `# Engram: ${engram.name}\n\nBase directory: ${shortenPath(engram.directory)}\n\nEngram README:\n\n---\n\n`;
+      return `${preamble}${engram.content}${treeSection}`;
     };
 
     const tools: Record<string, ReturnType<typeof tool>> = {};
@@ -115,24 +187,12 @@ const EngramsPlugin: Plugin = async (input) => {
             });
           };
 
-          // For lazy engrams, skip file tree (directory is empty) and use stored content
+          const content = await getEngramContent(engram);
+          await sendSilentPrompt(content);
+
           if (engram.lazy) {
-            const preamble = `# Engram: ${engram.name} [NOT INITIALIZED]\n\nThis engram's submodule has not been cloned yet.\n\n---\n\n`;
-            await sendSilentPrompt(`${preamble}${engram.content}`);
             return `Engram "${engram.name}" is not initialized. Run \`engram lazy-init ${engram.name}\` to initialize it.`;
           }
-
-          const fileTree = await generateFileTree(engram.directory, {
-            includeMetadata: true,
-            manifestOneliners: engram.oneliners,
-          });
-          const treeSection = fileTree
-            ? `\n\n## Available Resources:\n\`\`\`\n${fileTree}\n\`\`\``
-            : "";
-
-          const preamble = `# Engram: ${engram.name}\n\nBase directory: ${shortenPath(engram.directory)}\n\nEngram README:\n\n---\n\n`;
-
-          await sendSilentPrompt(`${preamble}${engram.content}${treeSection}`);
           return `Launching engram: ${engram.name}`;
         },
       });
@@ -177,11 +237,12 @@ const EngramsPlugin: Plugin = async (input) => {
       tool: tools,
       async "chat.message"(hookInput, output) {
         const sessionID = hookInput.sessionID;
-        const active =
-          sessionTriggers.get(sessionID) ?? new Set(alwaysVisibleTools);
+        const disclosed =
+          sessionDisclosed.get(sessionID) ?? new Set(alwaysVisibleTools);
+        const activated = sessionActivated.get(sessionID) ?? new Set<string>();
 
         for (const toolName of alwaysVisibleTools) {
-          active.add(toolName);
+          disclosed.add(toolName);
         }
 
         const parts = (output.parts ?? []) as MessagePart[];
@@ -189,34 +250,59 @@ const EngramsPlugin: Plugin = async (input) => {
         const agentText = extractAgentText(parts);
         const allText = extractAllText(parts);
 
+        // Collect engrams that need immediate activation
+        const toActivate: string[] = [];
+
         for (const matcher of matchableTriggers) {
-          // Check any-msg triggers against all text
+          // Check disclosure triggers - makes tool visible to agent
           if (
-            allText.trim() &&
-            matcher.anyMsgRegexes.some((regex) => regex.test(allText))
+            hasRegexes(matcher.disclosure) &&
+            matchesTriggers(matcher.disclosure, userText, agentText, allText)
           ) {
-            active.add(matcher.toolName);
-            continue;
+            disclosed.add(matcher.toolName);
           }
-          // Check user-msg triggers against user text only
+
+          // Check activation triggers - immediately execute (if not already activated)
           if (
-            userText.trim() &&
-            matcher.userMsgRegexes.some((regex) => regex.test(userText))
+            hasRegexes(matcher.activation) &&
+            !activated.has(matcher.toolName) &&
+            matchesTriggers(matcher.activation, userText, agentText, allText)
           ) {
-            active.add(matcher.toolName);
-            continue;
-          }
-          // Check agent-msg triggers against agent text only
-          if (
-            agentText.trim() &&
-            matcher.agentMsgRegexes.some((regex) => regex.test(agentText))
-          ) {
-            active.add(matcher.toolName);
+            // Also disclose so it shows in tools list
+            disclosed.add(matcher.toolName);
+            toActivate.push(matcher.toolName);
           }
         }
 
+        // Perform immediate activations
+        for (const toolName of toActivate) {
+          const engram = engramByToolName.get(toolName);
+          if (!engram) continue;
+
+          // Check parent chain is disclosed before activating
+          if (!isParentChainDisclosed(toolName, disclosed)) continue;
+
+          // Inject engram content
+          const content = await getEngramContent(engram);
+
+          if (input.client?.session?.prompt) {
+            await input.client.session.prompt({
+              path: { id: sessionID },
+              body: {
+                agent: hookInput.agent,
+                noReply: true,
+                parts: [{ type: "text", text: content }],
+              },
+            });
+          }
+
+          activated.add(toolName);
+        }
+
         const message = output.message as { tools?: Record<string, boolean> };
-        const toolsConfig: Record<string, boolean> = { ...(message.tools ?? {}) };
+        const toolsConfig: Record<string, boolean> = {
+          ...(message.tools ?? {}),
+        };
 
         // Default to hidden for all Engram tools unless explicitly re-enabled below
         toolsConfig["engram_*"] = toolsConfig["engram_*"] ?? false;
@@ -224,15 +310,17 @@ const EngramsPlugin: Plugin = async (input) => {
           toolsConfig[toolName] = false;
         }
 
-        // Only enable tools that are active AND have their parent chain active
-        for (const toolName of active) {
-          if (isParentChainActive(toolName, active)) {
+        // Only enable tools that are disclosed AND have their parent chain disclosed
+        for (const toolName of disclosed) {
+          if (isParentChainDisclosed(toolName, disclosed)) {
             toolsConfig[toolName] = true;
           }
         }
 
-        (output.message as { tools?: Record<string, boolean> }).tools = toolsConfig;
-        sessionTriggers.set(sessionID, active);
+        (output.message as { tools?: Record<string, boolean> }).tools =
+          toolsConfig;
+        sessionDisclosed.set(sessionID, disclosed);
+        sessionActivated.set(sessionID, activated);
       },
     };
   } catch (error) {

@@ -17,7 +17,14 @@ export interface EngramIndexEntry {
   version?: string;
   /** URL for submodule-based engrams */
   url?: string;
-  triggers?: {
+  /** Disclosure triggers - reveal name/description to agent */
+  "disclosure-triggers"?: {
+    "any-msg"?: string[];
+    "user-msg"?: string[];
+    "agent-msg"?: string[];
+  };
+  /** Activation triggers - full immediate activation */
+  "activation-triggers"?: {
     "any-msg"?: string[];
     "user-msg"?: string[];
     "agent-msg"?: string[];
@@ -125,17 +132,55 @@ export function parseEngramToml(tomlPath: string): EngramIndexEntry | null {
     entry.version = parsed.version as string;
   }
 
-  if (parsed.triggers && typeof parsed.triggers === "object") {
-    const triggers = parsed.triggers as Record<string, unknown>;
-    entry.triggers = {};
+  // Parse disclosure triggers
+  if (
+    parsed["disclosure-triggers"] &&
+    typeof parsed["disclosure-triggers"] === "object"
+  ) {
+    const triggers = parsed["disclosure-triggers"] as Record<string, unknown>;
+    entry["disclosure-triggers"] = {};
     if (Array.isArray(triggers["any-msg"])) {
-      entry.triggers["any-msg"] = triggers["any-msg"] as string[];
+      entry["disclosure-triggers"]["any-msg"] = triggers["any-msg"] as string[];
     }
     if (Array.isArray(triggers["user-msg"])) {
-      entry.triggers["user-msg"] = triggers["user-msg"] as string[];
+      entry["disclosure-triggers"]["user-msg"] = triggers[
+        "user-msg"
+      ] as string[];
     }
     if (Array.isArray(triggers["agent-msg"])) {
-      entry.triggers["agent-msg"] = triggers["agent-msg"] as string[];
+      entry["disclosure-triggers"]["agent-msg"] = triggers[
+        "agent-msg"
+      ] as string[];
+    }
+    // Remove if empty
+    if (Object.keys(entry["disclosure-triggers"]).length === 0) {
+      delete entry["disclosure-triggers"];
+    }
+  }
+
+  // Parse activation triggers
+  if (
+    parsed["activation-triggers"] &&
+    typeof parsed["activation-triggers"] === "object"
+  ) {
+    const triggers = parsed["activation-triggers"] as Record<string, unknown>;
+    entry["activation-triggers"] = {};
+    if (Array.isArray(triggers["any-msg"])) {
+      entry["activation-triggers"]["any-msg"] = triggers["any-msg"] as string[];
+    }
+    if (Array.isArray(triggers["user-msg"])) {
+      entry["activation-triggers"]["user-msg"] = triggers[
+        "user-msg"
+      ] as string[];
+    }
+    if (Array.isArray(triggers["agent-msg"])) {
+      entry["activation-triggers"]["agent-msg"] = triggers[
+        "agent-msg"
+      ] as string[];
+    }
+    // Remove if empty
+    if (Object.keys(entry["activation-triggers"]).length === 0) {
+      delete entry["activation-triggers"];
     }
   }
 

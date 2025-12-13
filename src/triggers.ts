@@ -1,4 +1,9 @@
-import type { Engram, ContextTriggerMatcher } from "./types";
+import type {
+  Engram,
+  ContextTriggerMatcher,
+  TriggerConfig,
+  CompiledTriggerRegexes,
+} from "./types";
 
 const WILDCARD_PATTERN = /[*?\[]/;
 
@@ -113,36 +118,67 @@ export function compileContextTrigger(pattern: string): RegExp[] {
   const trimmed = pattern.trim();
   if (!trimmed) return [];
 
+  // Bare "*" is handled specially as always-match in compileTriggerConfig
+  // Don't compile it to regex here
+  if (trimmed === "*") return [];
+
   const hasWildcard = WILDCARD_PATTERN.test(trimmed);
   const expansions = expandBraces(trimmed);
 
   return expansions.map((expanded) => globToRegExp(expanded, !hasWildcard));
 }
 
+/** Check if a trigger array contains a bare star wildcard */
+function containsStarWildcard(triggers?: string[]): boolean {
+  if (!triggers) return false;
+  return triggers.some((t) => t.trim() === "*");
+}
+
+/** Compile a TriggerConfig into CompiledTriggerRegexes */
+function compileTriggerConfig(config?: TriggerConfig): CompiledTriggerRegexes {
+  // Check for bare "*" in any array - means always match
+  const alwaysMatch =
+    containsStarWildcard(config?.anyMsg) ||
+    containsStarWildcard(config?.userMsg) ||
+    containsStarWildcard(config?.agentMsg);
+
+  return {
+    anyMsgRegexes: (config?.anyMsg ?? []).flatMap((t) =>
+      compileContextTrigger(t),
+    ),
+    userMsgRegexes: (config?.userMsg ?? []).flatMap((t) =>
+      compileContextTrigger(t),
+    ),
+    agentMsgRegexes: (config?.agentMsg ?? []).flatMap((t) =>
+      compileContextTrigger(t),
+    ),
+    alwaysMatch,
+  };
+}
+
+/** Check if a CompiledTriggerRegexes has any patterns (or always matches) */
+function hasRegexes(regexes: CompiledTriggerRegexes): boolean {
+  return (
+    regexes.alwaysMatch ||
+    regexes.anyMsgRegexes.length > 0 ||
+    regexes.userMsgRegexes.length > 0 ||
+    regexes.agentMsgRegexes.length > 0
+  );
+}
+
 export function buildContextTriggerMatchers(
   engrams: Engram[],
 ): ContextTriggerMatcher[] {
   return engrams.map((engram) => {
-    const anyMsgRegexes = (engram.triggers?.anyMsg ?? []).flatMap((trigger) =>
-      compileContextTrigger(trigger),
-    );
-    const userMsgRegexes = (engram.triggers?.userMsg ?? []).flatMap((trigger) =>
-      compileContextTrigger(trigger),
-    );
-    const agentMsgRegexes = (engram.triggers?.agentMsg ?? []).flatMap(
-      (trigger) => compileContextTrigger(trigger),
-    );
+    const disclosure = compileTriggerConfig(engram.disclosureTriggers);
+    const activation = compileTriggerConfig(engram.activationTriggers);
 
-    const hasTriggers =
-      anyMsgRegexes.length > 0 ||
-      userMsgRegexes.length > 0 ||
-      agentMsgRegexes.length > 0;
+    const hasTriggers = hasRegexes(disclosure) || hasRegexes(activation);
 
     return {
       toolName: engram.toolName,
-      anyMsgRegexes,
-      userMsgRegexes,
-      agentMsgRegexes,
+      disclosure,
+      activation,
       alwaysVisible: !hasTriggers,
     };
   });
