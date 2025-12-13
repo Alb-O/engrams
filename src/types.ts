@@ -1,4 +1,4 @@
-export interface Module {
+export interface Engram {
   name: string;
   directory: string;
   toolName: string;
@@ -9,7 +9,7 @@ export interface Module {
   content: string;
   /** Path to the engram.toml manifest */
   manifestPath: string;
-  /** Trigger configuration for progressive module discovery */
+  /** Trigger configuration for progressive engram discovery */
   triggers?: {
     /** Triggers that match any message (user or agent) */
     anyMsg?: string[];
@@ -18,17 +18,17 @@ export interface Module {
     /** Triggers that only match agent messages */
     agentMsg?: string[];
   };
-  /** Tool name of the parent module (if this is a nested module) */
+  /** Tool name of the parent engram (if this is a nested engram) */
   parentToolName?: string;
-  /** Tool names of direct child modules */
+  /** Tool names of direct child engrams */
   childToolNames?: string[];
-  /** True if this module is from the index but not yet initialized (submodule not cloned) */
+  /** True if this engram is from the index but not yet initialized (submodule not cloned) */
   lazy?: boolean;
-  /** URL to clone/init the module from (for lazy modules) */
+  /** URL to clone/init the engram from (for lazy engrams) */
   url?: string;
 }
 
-/** Compiled matcher derived from a module's triggers */
+/** Compiled matcher derived from an engram's triggers */
 export interface ContextTriggerMatcher {
   toolName: string;
   /** Regexes that match any message */

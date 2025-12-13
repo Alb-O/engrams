@@ -4,12 +4,12 @@ import os from "os";
 import { join } from "path";
 import {
   buildContextTriggerMatchers,
-  discoverModulesWithLazy,
+  discoverEngramsWithLazy,
   generateFileTree,
-  getDefaultModulePaths,
+  getDefaultEngramPaths,
   logError,
   logWarning,
-  type Module,
+  type Engram,
 } from "./helpers";
 
 /**
@@ -23,24 +23,24 @@ function shortenPath(filePath: string): string {
   return filePath;
 }
 
-const ModulesPlugin: Plugin = async (input) => {
+const EngramsPlugin: Plugin = async (input) => {
   try {
-    const modules = await discoverModulesWithLazy(
-      getDefaultModulePaths(input.directory),
+    const engrams = await discoverEngramsWithLazy(
+      getDefaultEngramPaths(input.directory),
       input.directory, // Pass root dir for index reading
     );
 
-    if (modules.length === 0) {
+    if (engrams.length === 0) {
       return {};
     }
 
-    // Build lookup map from toolName to module
-    const moduleByToolName = new Map<string, Module>();
-    for (const module of modules) {
-      moduleByToolName.set(module.toolName, module);
+    // Build lookup map from toolName to engram
+    const engramByToolName = new Map<string, Engram>();
+    for (const engram of engrams) {
+      engramByToolName.set(engram.toolName, engram);
     }
 
-    const triggerMatchers = buildContextTriggerMatchers(modules);
+    const triggerMatchers = buildContextTriggerMatchers(engrams);
     const alwaysVisibleTools = new Set(
       triggerMatchers
         .filter((matcher) => matcher.alwaysVisible)
@@ -56,16 +56,16 @@ const ModulesPlugin: Plugin = async (input) => {
     const warnedUnknownTools = new Set<string>();
 
     /**
-     * Checks if a module's parent chain is fully visible.
-     * A module is only visible if all its ancestors are also in the active set.
+     * Checks if an engram's parent chain is fully visible.
+     * An engram is only visible if all its ancestors are also in the active set.
      * Returns false for unknown tool names to prevent activation of undeclared tools.
      */
     const isParentChainActive = (
       toolName: string,
       active: Set<string>,
     ): boolean => {
-      const module = moduleByToolName.get(toolName);
-      if (!module) {
+      const engram = engramByToolName.get(toolName);
+      if (!engram) {
         // Unknown tool name - reject and warn once
         if (!warnedUnknownTools.has(toolName)) {
           warnedUnknownTools.add(toolName);
@@ -74,31 +74,31 @@ const ModulesPlugin: Plugin = async (input) => {
         return false;
       }
 
-      if (!module.parentToolName) {
-        // Root module - no parent constraint
+      if (!engram.parentToolName) {
+        // Root engram - no parent constraint
         return true;
       }
 
       // Check if parent is active and its chain is active
-      if (!active.has(module.parentToolName)) {
+      if (!active.has(engram.parentToolName)) {
         return false;
       }
 
-      return isParentChainActive(module.parentToolName, active);
+      return isParentChainActive(engram.parentToolName, active);
     };
 
     const tools: Record<string, ReturnType<typeof tool>> = {};
 
-    for (const module of modules) {
-      if (!module.toolName) continue;
+    for (const engram of engrams) {
+      if (!engram.toolName) continue;
 
       // Include human-readable name in description for agent visibility
-      // Mark lazy (uninitialized) modules so the agent knows they need init
-      const toolDescription = module.lazy
-        ? `[NOT INITIALIZED] ${module.name}: ${module.description}`
-        : `${module.name}: ${module.description}`;
+      // Mark lazy (uninitialized) engrams so the agent knows they need init
+      const toolDescription = engram.lazy
+        ? `[NOT INITIALIZED] ${engram.name}: ${engram.description}`
+        : `${engram.name}: ${engram.description}`;
 
-      tools[module.toolName] = tool({
+      tools[engram.toolName] = tool({
         description: toolDescription,
         args: {},
         async execute(_, toolCtx) {
@@ -115,24 +115,24 @@ const ModulesPlugin: Plugin = async (input) => {
             });
           };
 
-          // For lazy modules, skip file tree (directory is empty) and use stored content
-          if (module.lazy) {
-            const preamble = `# Module: ${module.name} [NOT INITIALIZED]\n\nThis module's submodule has not been cloned yet.\n\n---\n\n`;
-            await sendSilentPrompt(`${preamble}${module.content}`);
-            return `Module "${module.name}" is not initialized. Run \`engram lazy-init ${module.name}\` to initialize it.`;
+          // For lazy engrams, skip file tree (directory is empty) and use stored content
+          if (engram.lazy) {
+            const preamble = `# Engram: ${engram.name} [NOT INITIALIZED]\n\nThis engram's submodule has not been cloned yet.\n\n---\n\n`;
+            await sendSilentPrompt(`${preamble}${engram.content}`);
+            return `Engram "${engram.name}" is not initialized. Run \`engram lazy-init ${engram.name}\` to initialize it.`;
           }
 
-          const fileTree = await generateFileTree(module.directory, {
+          const fileTree = await generateFileTree(engram.directory, {
             includeMetadata: true,
           });
           const treeSection = fileTree
             ? `\n\n## Available Resources:\n\`\`\`\n${fileTree}\n\`\`\``
             : "";
 
-          const preamble = `# Module: ${module.name}\n\nBase directory: ${shortenPath(module.directory)}\n\nModule README:\n\n---\n\n`;
+          const preamble = `# Engram: ${engram.name}\n\nBase directory: ${shortenPath(engram.directory)}\n\nEngram README:\n\n---\n\n`;
 
-          await sendSilentPrompt(`${preamble}${module.content}${treeSection}`);
-          return `Launching module: ${module.name}`;
+          await sendSilentPrompt(`${preamble}${engram.content}${treeSection}`);
+          return `Launching engram: ${engram.name}`;
         },
       });
     }
@@ -236,11 +236,11 @@ const ModulesPlugin: Plugin = async (input) => {
       },
     };
   } catch (error) {
-    logError("Failed to initialize modules plugin:", error);
+    logError("Failed to initialize engrams plugin:", error);
     // Rethrow to surface the error to the plugin host
     // This ensures misconfigurations are visible rather than silently ignored
     throw error;
   }
 };
 
-export default ModulesPlugin;
+export default EngramsPlugin;

@@ -1,10 +1,12 @@
 import { command, flag } from "cmd-ts";
+import { execSync } from "child_process";
 import * as fs from "fs";
 import * as os from "os";
 import * as path from "path";
 import pc from "picocolors";
 import * as TOML from "@iarna/toml";
 import { getModulePaths, findProjectRoot } from "../utils";
+import { readIndex, isSubmoduleInitialized } from "../index-ref";
 
 /**
  * Shortens a path by replacing the home directory with ~
@@ -17,7 +19,7 @@ function shortenPath(p: string): string {
   return p;
 }
 
-interface ModuleInfo {
+interface EngramInfo {
   name: string;
   displayName: string;
   description: string;
@@ -30,11 +32,15 @@ interface ModuleInfo {
     userMsg?: string[];
     agentMsg?: string[];
   };
-  children: ModuleInfo[];
+  children: EngramInfo[];
   depth: number;
+  /** Whether this engram is initialized (has content). For submodules, false means not cloned */
+  initialized: boolean;
+  /** Whether this is from the index (lazy) rather than filesystem scan */
+  fromIndex?: boolean;
 }
 
-function parseModuleToml(tomlPath: string): {
+function parseEngramToml(tomlPath: string): {
   name?: string;
   description?: string;
   triggers?: { anyMsg?: string[]; userMsg?: string[]; agentMsg?: string[] };
@@ -64,55 +70,56 @@ function parseModuleToml(tomlPath: string): {
   }
 }
 
-function scanModulesRecursive(
+function scanEngramsRecursive(
   dir: string,
   scope: "global" | "local",
   depth = 0,
-): ModuleInfo[] {
-  const modules: ModuleInfo[] = [];
+): EngramInfo[] {
+  const engrams: EngramInfo[] = [];
 
   if (!fs.existsSync(dir)) {
-    return modules;
+    return engrams;
   }
 
   const entries = fs.readdirSync(dir, { withFileTypes: true });
   for (const entry of entries) {
     if (entry.isDirectory() && !entry.name.startsWith(".")) {
-      const modulePath = path.join(dir, entry.name);
-      const tomlPath = path.join(modulePath, "engram.toml");
+      const engramPath = path.join(dir, entry.name);
+      const tomlPath = path.join(engramPath, "engram.toml");
       const hasToml = fs.existsSync(tomlPath);
 
-      const tomlData = hasToml ? parseModuleToml(tomlPath) : null;
+      const tomlData = hasToml ? parseEngramToml(tomlPath) : null;
 
-      // Recursively scan for nested modules
-      const children = scanModulesRecursive(modulePath, scope, depth + 1);
+      // Recursively scan for nested engrams
+      const children = scanEngramsRecursive(engramPath, scope, depth + 1);
 
-      // Only include as a module if it has engram.toml
-      // But still traverse for nested modules
+      // Only include as an engram if it has engram.toml
+      // But still traverse for nested engrams
       if (hasToml) {
-        modules.push({
+        engrams.push({
           name: entry.name,
           displayName: tomlData?.name || entry.name,
           description: tomlData?.description || "",
-          path: modulePath,
+          path: engramPath,
           scope,
           hasToml,
           parseError: tomlData?.error,
           triggers: tomlData?.triggers,
           children,
           depth,
+          initialized: true, // If we found engram.toml, it's initialized
         });
       } else if (children.length > 0) {
-        // Directory has no toml but contains nested modules - include children at this level
-        modules.push(...children);
+        // Directory has no toml but contains nested engrams - include children at this level
+        engrams.push(...children);
       }
     }
   }
 
-  return modules;
+  return engrams;
 }
 
-function getTriggerSummary(triggers?: ModuleInfo["triggers"]): string {
+function getTriggerSummary(triggers?: EngramInfo["triggers"]): string {
   const anyCount = triggers?.anyMsg?.length || 0;
   const userCount = triggers?.userMsg?.length || 0;
   const agentCount = triggers?.agentMsg?.length || 0;
@@ -130,57 +137,106 @@ function getTriggerSummary(triggers?: ModuleInfo["triggers"]): string {
   return pc.dim(`${total} trigger${total === 1 ? "" : "s"}`);
 }
 
-function printModuleTree(
-  modules: ModuleInfo[],
+function printEngramTree(
+  engrams: EngramInfo[],
   prefix = "",
   isLast = true,
 ): void {
-  for (let i = 0; i < modules.length; i++) {
-    const mod = modules[i];
-    const isLastItem = i === modules.length - 1;
+  for (let i = 0; i < engrams.length; i++) {
+    const eg = engrams[i];
+    const isLastItem = i === engrams.length - 1;
     const connector = isLastItem ? "└─" : "├─";
     const childPrefix = isLastItem ? "  " : "│ ";
 
-    // Module name and display name
+    // Initialization status indicator
+    const statusDot = eg.initialized ? pc.green("●") : pc.dim("○");
+
+    // Engram name and display name
     const nameDisplay =
-      mod.displayName !== mod.name
-        ? `${pc.bold(mod.name)} ${pc.dim(`(${mod.displayName})`)}`
-        : pc.bold(mod.name);
+      eg.displayName !== eg.name
+        ? `${pc.bold(eg.name)} ${pc.dim(`(${eg.displayName})`)}`
+        : pc.bold(eg.name);
 
     // Description (truncated if needed)
     const maxDescLen = 50;
-    const desc = mod.description
-      ? mod.description.length > maxDescLen
-        ? mod.description.slice(0, maxDescLen - 3) + "..."
-        : mod.description
+    const desc = eg.description
+      ? eg.description.length > maxDescLen
+        ? eg.description.slice(0, maxDescLen - 3) + "..."
+        : eg.description
       : "";
     const descDisplay = desc ? pc.dim(` - ${desc}`) : "";
 
     // Trigger summary
-    const triggerDisplay = getTriggerSummary(mod.triggers);
+    const triggerDisplay = getTriggerSummary(eg.triggers);
     const triggerPart = triggerDisplay ? ` [${triggerDisplay}]` : "";
 
     // Warnings
     let warning = "";
-    if (!mod.hasToml) {
+    if (!eg.hasToml && !eg.fromIndex) {
       warning = pc.yellow(" (missing engram.toml)");
-    } else if (mod.parseError) {
-      warning = pc.red(` (parse error: ${mod.parseError})`);
+    } else if (eg.parseError) {
+      warning = pc.red(` (parse error: ${eg.parseError})`);
     }
 
     console.log(
-      `${prefix}${connector} ${nameDisplay}${descDisplay}${triggerPart}${warning}`,
+      `${prefix}${connector} ${statusDot} ${nameDisplay}${descDisplay}${triggerPart}${warning}`,
     );
 
     // Print children with updated prefix
-    if (mod.children.length > 0) {
-      printModuleTree(mod.children, prefix + childPrefix, isLastItem);
+    if (eg.children.length > 0) {
+      printEngramTree(eg.children, prefix + childPrefix, isLastItem);
     }
   }
 }
 
-function countModules(modules: ModuleInfo[]): number {
-  return modules.reduce((sum, m) => sum + 1 + countModules(m.children), 0);
+function countEngrams(engrams: EngramInfo[]): number {
+  return engrams.reduce((sum, e) => sum + 1 + countEngrams(e.children), 0);
+}
+
+/**
+ * Get uninitialized engrams from the index that weren't found in filesystem scan
+ */
+function getUninitializedFromIndex(
+  projectRoot: string,
+  existingNames: Set<string>,
+): EngramInfo[] {
+  const index = readIndex(projectRoot);
+  if (!index) return [];
+
+  const uninitialized: EngramInfo[] = [];
+
+  for (const [name, entry] of Object.entries(index)) {
+    if (existingNames.has(name)) continue;
+
+    // Check if directory exists but is empty (submodule registered but not cloned)
+    const submodulePath = `.engrams/${name}`;
+    if (!isSubmoduleInitialized(projectRoot, submodulePath)) {
+      // Convert trigger format
+      const triggers = entry.triggers
+        ? {
+            anyMsg: entry.triggers["any-msg"],
+            userMsg: entry.triggers["user-msg"],
+            agentMsg: entry.triggers["agent-msg"],
+          }
+        : undefined;
+
+      uninitialized.push({
+        name,
+        displayName: entry.name || name,
+        description: entry.description || "",
+        path: path.join(projectRoot, submodulePath),
+        scope: "local",
+        hasToml: false,
+        triggers,
+        children: [],
+        depth: 0,
+        initialized: false,
+        fromIndex: true,
+      });
+    }
+  }
+
+  return uninitialized;
 }
 
 export const list = command({
@@ -190,12 +246,12 @@ export const list = command({
     global: flag({
       long: "global",
       short: "g",
-      description: "Show only global modules",
+      description: "Show only global engrams",
     }),
     local: flag({
       long: "local",
       short: "l",
-      description: "Show only local modules",
+      description: "Show only local engrams",
     }),
     flat: flag({
       long: "flat",
@@ -207,74 +263,86 @@ export const list = command({
     const projectRoot = findProjectRoot();
     const paths = getModulePaths(projectRoot || undefined);
 
-    let globalModules: ModuleInfo[] = [];
-    let localModules: ModuleInfo[] = [];
+    let globalEngrams: EngramInfo[] = [];
+    let localEngrams: EngramInfo[] = [];
 
     if (!localOnly) {
-      globalModules = scanModulesRecursive(paths.global, "global");
+      globalEngrams = scanEngramsRecursive(paths.global, "global");
     }
 
     if (!globalOnly && paths.local) {
-      localModules = scanModulesRecursive(paths.local, "local");
+      localEngrams = scanEngramsRecursive(paths.local, "local");
+
+      // Add uninitialized engrams from the index
+      if (projectRoot) {
+        const existingNames = new Set(localEngrams.map((e) => e.name));
+        const uninitialized = getUninitializedFromIndex(projectRoot, existingNames);
+        localEngrams.push(...uninitialized);
+      }
     }
 
-    const totalGlobal = countModules(globalModules);
-    const totalLocal = countModules(localModules);
+    const totalGlobal = countEngrams(globalEngrams);
+    const totalLocal = countEngrams(localEngrams);
 
     if (totalGlobal === 0 && totalLocal === 0) {
-      console.log(pc.dim("No modules installed"));
+      console.log(pc.dim("No engrams installed"));
       if (!projectRoot && !globalOnly) {
         console.log(
-          pc.dim("(Not in a project directory - showing global modules only)"),
+          pc.dim("(Not in a project directory - showing global engrams only)"),
         );
       }
       return;
     }
 
     // Flatten helper for --flat flag
-    const flatten = (modules: ModuleInfo[]): ModuleInfo[] => {
-      return modules.flatMap((m) => [
-        { ...m, children: [] },
-        ...flatten(m.children),
+    const flatten = (engrams: EngramInfo[]): EngramInfo[] => {
+      return engrams.flatMap((e) => [
+        { ...e, children: [] },
+        ...flatten(e.children),
       ]);
     };
 
     let printedSection = false;
 
-    if (globalModules.length > 0 && !localOnly) {
+    if (globalEngrams.length > 0 && !localOnly) {
       console.log(
-        pc.bold("🌐 Global modules") +
+        pc.bold("🌐 Global engrams") +
           pc.dim(` (${shortenPath(paths.global)})`) +
-          pc.dim(` — ${totalGlobal} module${totalGlobal === 1 ? "" : "s"}`),
+          pc.dim(` — ${totalGlobal} engram${totalGlobal === 1 ? "" : "s"}`),
       );
       if (flat) {
-        const flatList = flatten(globalModules);
-        for (const mod of flatList) {
-          const indent = "  ".repeat(mod.depth);
-          console.log(`${indent}${mod.name}`);
+        const flatList = flatten(globalEngrams);
+        for (const eg of flatList) {
+          const statusDot = eg.initialized ? pc.green("●") : pc.dim("○");
+          const indent = "  ".repeat(eg.depth);
+          console.log(`${indent}${statusDot} ${eg.name}`);
         }
       } else {
-        printModuleTree(globalModules);
+        printEngramTree(globalEngrams);
       }
       printedSection = true;
     }
 
-    if (localModules.length > 0 && !globalOnly) {
+    if (localEngrams.length > 0 && !globalOnly) {
       if (printedSection) console.log("");
       console.log(
-        pc.bold("📁 Local modules") +
+        pc.bold("📁 Local engrams") +
           pc.dim(` (${shortenPath(paths.local!)})`) +
-          pc.dim(` — ${totalLocal} module${totalLocal === 1 ? "" : "s"}`),
+          pc.dim(` — ${totalLocal} engram${totalLocal === 1 ? "" : "s"}`),
       );
       if (flat) {
-        const flatList = flatten(localModules);
-        for (const mod of flatList) {
-          const indent = "  ".repeat(mod.depth);
-          console.log(`${indent}${mod.name}`);
+        const flatList = flatten(localEngrams);
+        for (const eg of flatList) {
+          const statusDot = eg.initialized ? pc.green("●") : pc.dim("○");
+          const indent = "  ".repeat(eg.depth);
+          console.log(`${indent}${statusDot} ${eg.name}`);
         }
       } else {
-        printModuleTree(localModules);
+        printEngramTree(localEngrams);
       }
     }
+
+    // Legend
+    console.log(pc.dim(`\n● initialized  ○ not initialized`));
   },
 });

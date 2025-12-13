@@ -1,4 +1,4 @@
-import type { Module, ContextTriggerMatcher } from "./types";
+import type { Engram, ContextTriggerMatcher } from "./types";
 
 const WILDCARD_PATTERN = /[*?\[]/;
 
@@ -120,16 +120,16 @@ export function compileContextTrigger(pattern: string): RegExp[] {
 }
 
 export function buildContextTriggerMatchers(
-  modules: Module[],
+  engrams: Engram[],
 ): ContextTriggerMatcher[] {
-  return modules.map((module) => {
-    const anyMsgRegexes = (module.triggers?.anyMsg ?? []).flatMap((trigger) =>
+  return engrams.map((engram) => {
+    const anyMsgRegexes = (engram.triggers?.anyMsg ?? []).flatMap((trigger) =>
       compileContextTrigger(trigger),
     );
-    const userMsgRegexes = (module.triggers?.userMsg ?? []).flatMap((trigger) =>
+    const userMsgRegexes = (engram.triggers?.userMsg ?? []).flatMap((trigger) =>
       compileContextTrigger(trigger),
     );
-    const agentMsgRegexes = (module.triggers?.agentMsg ?? []).flatMap(
+    const agentMsgRegexes = (engram.triggers?.agentMsg ?? []).flatMap(
       (trigger) => compileContextTrigger(trigger),
     );
 
@@ -139,7 +139,7 @@ export function buildContextTriggerMatchers(
       agentMsgRegexes.length > 0;
 
     return {
-      toolName: module.toolName,
+      toolName: engram.toolName,
       anyMsgRegexes,
       userMsgRegexes,
       agentMsgRegexes,

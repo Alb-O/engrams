@@ -3,32 +3,32 @@ import { promises as fs } from "node:fs";
 import path from "node:path";
 import os from "node:os";
 
-import { generateToolName, parseModule } from "./manifest";
-import { createModule } from "./test-utils";
+import { generateToolName, parseEngram } from "./manifest";
+import { createEngram } from "./test-utils";
 
 describe("manifest", () => {
   let tempDir: string;
 
   beforeEach(async () => {
-    tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "modules-plugin-"));
+    tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "engrams-plugin-"));
   });
 
   afterEach(async () => {
     await fs.rm(tempDir, { recursive: true, force: true });
   });
 
-  describe("parseModule", () => {
-    it("parses a valid module with engram.toml and generates a tool name", async () => {
+  describe("parseEngram", () => {
+    it("parses a valid engram with engram.toml and generates a tool name", async () => {
       const baseDir = path.join(tempDir, ".engrams");
-      const moduleDir = path.join(baseDir, "demo-module");
-      const manifestPath = await createModule(moduleDir, "demo-module");
+      const engramDir = path.join(baseDir, "demo-engram");
+      const manifestPath = await createEngram(engramDir, "demo-engram");
 
-      const parsed = await parseModule(manifestPath, baseDir);
+      const parsed = await parseEngram(manifestPath, baseDir);
 
-      expect(parsed?.name).toBe("demo-module");
-      expect(parsed?.directory).toBe(moduleDir);
-      expect(parsed?.toolName).toBe("engram_demo_module");
-      expect(parsed?.content).toContain("Body of the module.");
+      expect(parsed?.name).toBe("demo-engram");
+      expect(parsed?.directory).toBe(engramDir);
+      expect(parsed?.toolName).toBe("engram_demo_engram");
+      expect(parsed?.content).toContain("Body of the engram.");
     });
   });
 
@@ -54,37 +54,37 @@ describe("manifest", () => {
       expect(toolName).toBe("engram_solo");
     });
 
-    it("returns fallback tool name when modulePath is invalid", () => {
+    it("returns fallback tool name when engramPath is invalid", () => {
       const toolName = generateToolName(undefined as unknown as string);
       expect(toolName).toBe("engram_unknown");
     });
 
-    it("generates correct tool names for nested modules", () => {
+    it("generates correct tool names for nested engrams", () => {
       const baseDir = path.join(tempDir, ".engrams");
 
-      const parentPath = path.join(baseDir, "parent-mod", "engram.toml");
+      const parentPath = path.join(baseDir, "parent-eg", "engram.toml");
       const childPath = path.join(
         baseDir,
-        "parent-mod",
-        "child-mod",
+        "parent-eg",
+        "child-eg",
         "engram.toml",
       );
       const grandchildPath = path.join(
         baseDir,
-        "parent-mod",
-        "child-mod",
-        "grandchild-mod",
+        "parent-eg",
+        "child-eg",
+        "grandchild-eg",
         "engram.toml",
       );
 
       expect(generateToolName(parentPath, baseDir)).toBe(
-        "engram_parent_mod",
+        "engram_parent_eg",
       );
       expect(generateToolName(childPath, baseDir)).toBe(
-        "engram_parent_mod_child_mod",
+        "engram_parent_eg_child_eg",
       );
       expect(generateToolName(grandchildPath, baseDir)).toBe(
-        "engram_parent_mod_child_mod_grandchild_mod",
+        "engram_parent_eg_child_eg_grandchild_eg",
       );
     });
   });

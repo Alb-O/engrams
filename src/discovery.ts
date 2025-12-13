@@ -2,16 +2,16 @@ import os from "os";
 import { promises as fs, Dirent } from "fs";
 import { dirname, join, sep } from "path";
 import { execSync } from "child_process";
-import type { Module } from "./types";
+import type { Engram } from "./types";
 import { logWarning } from "./logging";
-import { MANIFEST_FILENAME, parseModule, generateToolName } from "./manifest";
+import { MANIFEST_FILENAME, parseEngram, generateToolName } from "./manifest";
 
 /**
  * Finds all engram.toml files within a base path.
  * Returns paths to manifest files.
  */
-export async function findModuleFiles(basePath: string): Promise<string[]> {
-  const moduleFiles: string[] = [];
+export async function findEngramFiles(basePath: string): Promise<string[]> {
+  const engramFiles: string[] = [];
   const visited = new Set<string>();
   const queue = [basePath];
 
@@ -63,12 +63,12 @@ export async function findModuleFiles(basePath: string): Promise<string[]> {
       if (stat.isDirectory()) {
         queue.push(fullPath);
       } else if (stat.isFile() && entry.name === MANIFEST_FILENAME) {
-        moduleFiles.push(fullPath);
+        engramFiles.push(fullPath);
       }
     }
   }
 
-  return moduleFiles;
+  return engramFiles;
 }
 
 function normalizeBasePaths(basePaths: unknown): string[] {
@@ -81,59 +81,59 @@ function normalizeBasePaths(basePaths: unknown): string[] {
   }
 
   logWarning(
-    "Invalid basePaths provided to discoverModules; expected string[] or string.",
+    "Invalid basePaths provided to discoverEngrams; expected string[] or string.",
   );
   return [];
 }
 
 /**
- * Establishes parent-child relationships between modules based on directory hierarchy.
- * A module is a child of another if its directory is a descendant of the parent's directory.
+ * Establishes parent-child relationships between engrams based on directory hierarchy.
+ * An engram is a child of another if its directory is a descendant of the parent's directory.
  * Only the closest ancestor is set as the parent.
  * Uses realpath to resolve symlinks for accurate ancestry detection.
  */
-async function establishModuleHierarchy(modules: Module[]): Promise<void> {
-  // Resolve real paths for all modules to handle symlinks correctly
-  const realPaths = new Map<Module, string>();
-  for (const module of modules) {
+async function establishEngramHierarchy(engrams: Engram[]): Promise<void> {
+  // Resolve real paths for all engrams to handle symlinks correctly
+  const realPaths = new Map<Engram, string>();
+  for (const engram of engrams) {
     try {
-      realPaths.set(module, await fs.realpath(module.directory));
+      realPaths.set(engram, await fs.realpath(engram.directory));
     } catch {
       // If realpath fails, use original path
-      realPaths.set(module, module.directory);
+      realPaths.set(engram, engram.directory);
     }
   }
 
   // Sort by resolved directory depth (shallowest first)
-  const sortedByDepth = [...modules].sort((a, b) => {
+  const sortedByDepth = [...engrams].sort((a, b) => {
     const aPath = realPaths.get(a) || a.directory;
     const bPath = realPaths.get(b) || b.directory;
     return aPath.split(sep).length - bPath.split(sep).length;
   });
 
-  // Map from resolved directory to module for quick lookup
-  const dirToModule = new Map<string, Module>();
-  for (const module of sortedByDepth) {
-    const realPath = realPaths.get(module) || module.directory;
-    dirToModule.set(realPath, module);
+  // Map from resolved directory to engram for quick lookup
+  const dirToEngram = new Map<string, Engram>();
+  for (const engram of sortedByDepth) {
+    const realPath = realPaths.get(engram) || engram.directory;
+    dirToEngram.set(realPath, engram);
   }
 
-  // For each module, find its closest ancestor that is also a module
-  for (const module of sortedByDepth) {
-    const realPath = realPaths.get(module) || module.directory;
+  // For each engram, find its closest ancestor that is also an engram
+  for (const engram of sortedByDepth) {
+    const realPath = realPaths.get(engram) || engram.directory;
     let currentDir = dirname(realPath);
 
     while (currentDir && currentDir !== dirname(currentDir)) {
-      const parentModule = dirToModule.get(currentDir);
-      if (parentModule) {
+      const parentEngram = dirToEngram.get(currentDir);
+      if (parentEngram) {
         // Found the closest parent
-        module.parentToolName = parentModule.toolName;
+        engram.parentToolName = parentEngram.toolName;
 
-        // Add this module to parent's children
-        if (!parentModule.childToolNames) {
-          parentModule.childToolNames = [];
+        // Add this engram to parent's children
+        if (!parentEngram.childToolNames) {
+          parentEngram.childToolNames = [];
         }
-        parentModule.childToolNames.push(module.toolName);
+        parentEngram.childToolNames.push(engram.toolName);
         break;
       }
       currentDir = dirname(currentDir);
@@ -141,24 +141,24 @@ async function establishModuleHierarchy(modules: Module[]): Promise<void> {
   }
 }
 
-export async function discoverModules(basePaths: unknown): Promise<Module[]> {
+export async function discoverEngrams(basePaths: unknown): Promise<Engram[]> {
   const paths = normalizeBasePaths(basePaths);
   if (paths.length === 0) {
     return [];
   }
 
-  const modules: Module[] = [];
+  const engrams: Engram[] = [];
   let foundExistingDir = false;
 
   for (const basePath of paths) {
     try {
-      const matches = await findModuleFiles(basePath);
+      const matches = await findEngramFiles(basePath);
       foundExistingDir = true;
 
       for (const match of matches) {
-        const module = await parseModule(match, basePath);
-        if (module) {
-          modules.push(module);
+        const engram = await parseEngram(match, basePath);
+        if (engram) {
+          engrams.push(engram);
         }
       }
     } catch (error: any) {
@@ -166,7 +166,7 @@ export async function discoverModules(basePaths: unknown): Promise<Module[]> {
         continue;
       }
       logWarning(
-        `Unexpected error while scanning modules in ${basePath}:`,
+        `Unexpected error while scanning engrams in ${basePath}:`,
         error,
       );
     }
@@ -174,7 +174,7 @@ export async function discoverModules(basePaths: unknown): Promise<Module[]> {
 
   if (!foundExistingDir) {
     logWarning(
-      "No modules directories found. Checked:\n" +
+      "No engrams directories found. Checked:\n" +
         paths.map((path) => `  - ${path}`).join("\n"),
     );
   }
@@ -182,21 +182,21 @@ export async function discoverModules(basePaths: unknown): Promise<Module[]> {
   const toolNames = new Map<string, string>(); // toolName -> manifestPath
   const duplicates: { toolName: string; paths: string[] }[] = [];
 
-  for (const module of modules) {
-    const existing = toolNames.get(module.toolName);
+  for (const engram of engrams) {
+    const existing = toolNames.get(engram.toolName);
     if (existing) {
       // Find or create duplicate entry
-      const dup = duplicates.find((d) => d.toolName === module.toolName);
+      const dup = duplicates.find((d) => d.toolName === engram.toolName);
       if (dup) {
-        dup.paths.push(module.manifestPath);
+        dup.paths.push(engram.manifestPath);
       } else {
         duplicates.push({
-          toolName: module.toolName,
-          paths: [existing, module.manifestPath],
+          toolName: engram.toolName,
+          paths: [existing, engram.manifestPath],
         });
       }
     }
-    toolNames.set(module.toolName, module.manifestPath);
+    toolNames.set(engram.toolName, engram.manifestPath);
   }
 
   if (duplicates.length > 0) {
@@ -207,23 +207,23 @@ export async function discoverModules(basePaths: unknown): Promise<Module[]> {
       )
       .join("\n");
     throw new Error(
-      `Duplicate tool names detected. Each module must have a unique path.\n${details}`,
+      `Duplicate tool names detected. Each engram must have a unique path.\n${details}`,
     );
   }
 
   // Establish parent-child relationships based on directory hierarchy
-  await establishModuleHierarchy(modules);
+  await establishEngramHierarchy(engrams);
 
-  return modules;
+  return engrams;
 }
 
-export function getDefaultModulePaths(rootDir: string): string[] {
+export function getDefaultEngramPaths(rootDir: string): string[] {
   const xdgConfigHome = process.env.XDG_CONFIG_HOME;
-  const globalModulesPath = xdgConfigHome
+  const globalEngramsPath = xdgConfigHome
     ? join(xdgConfigHome, "engrams")
     : join(os.homedir(), ".config", "engrams");
 
-  return [globalModulesPath, join(rootDir, ".engrams")];
+  return [globalEngramsPath, join(rootDir, ".engrams")];
 }
 
 /** Entry from refs/engrams/index */
@@ -262,9 +262,9 @@ export function readIndexRef(repoPath: string): EngramIndex | null {
 /**
  * Check if a submodule directory has been initialized (has engram.toml)
  */
-async function isSubmoduleInitialized(modulePath: string): Promise<boolean> {
+async function isSubmoduleInitialized(engramPath: string): Promise<boolean> {
   try {
-    await fs.access(join(modulePath, MANIFEST_FILENAME));
+    await fs.access(join(engramPath, MANIFEST_FILENAME));
     return true;
   } catch {
     return false;
@@ -272,37 +272,37 @@ async function isSubmoduleInitialized(modulePath: string): Promise<boolean> {
 }
 
 /**
- * Create stub Module objects for uninitialized engrams from the index.
+ * Create stub Engram objects for uninitialized engrams from the index.
  * These have lazy=true and minimal content explaining how to init.
  */
-export async function getModulesFromIndex(
+export async function getEngramsFromIndex(
   repoPath: string,
   engramsDir: string,
-): Promise<Module[]> {
+): Promise<Engram[]> {
   const index = readIndexRef(repoPath);
   if (!index) {
     return [];
   }
 
-  const lazyModules: Module[] = [];
+  const lazyEngrams: Engram[] = [];
 
   for (const [key, entry] of Object.entries(index)) {
-    const modulePath = join(engramsDir, key);
+    const engramPath = join(engramsDir, key);
 
     // Skip if already initialized
-    if (await isSubmoduleInitialized(modulePath)) {
+    if (await isSubmoduleInitialized(engramPath)) {
       continue;
     }
 
     // Check if the directory exists (submodule registered but not cloned)
     try {
-      await fs.access(modulePath);
+      await fs.access(engramPath);
     } catch {
       // Directory doesn't exist at all, skip
       continue;
     }
 
-    const toolName = generateToolName(modulePath, engramsDir);
+    const toolName = generateToolName(engramPath, engramsDir);
 
     const lazyContent = `# ${entry.name}
 
@@ -319,73 +319,73 @@ engram lazy-init ${key}
 Or initialize via git:
 
 \`\`\`bash
-git submodule update --init ${modulePath}
+git submodule update --init ${engramPath}
 \`\`\`
 `;
 
-    const module: Module = {
+    const engram: Engram = {
       name: entry.name,
-      directory: modulePath,
+      directory: engramPath,
       toolName,
       description: entry.description,
       content: lazyContent,
-      manifestPath: join(modulePath, MANIFEST_FILENAME),
+      manifestPath: join(engramPath, MANIFEST_FILENAME),
       lazy: true,
       url: entry.url,
     };
 
     // Convert triggers
     if (entry.triggers) {
-      module.triggers = {};
+      engram.triggers = {};
       if (entry.triggers["any-msg"]) {
-        module.triggers.anyMsg = entry.triggers["any-msg"];
+        engram.triggers.anyMsg = entry.triggers["any-msg"];
       }
       if (entry.triggers["user-msg"]) {
-        module.triggers.userMsg = entry.triggers["user-msg"];
+        engram.triggers.userMsg = entry.triggers["user-msg"];
       }
       if (entry.triggers["agent-msg"]) {
-        module.triggers.agentMsg = entry.triggers["agent-msg"];
+        engram.triggers.agentMsg = entry.triggers["agent-msg"];
       }
     }
 
-    lazyModules.push(module);
+    lazyEngrams.push(engram);
   }
 
-  return lazyModules;
+  return lazyEngrams;
 }
 
 /**
- * Enhanced module discovery that includes lazy modules from the index.
+ * Enhanced engram discovery that includes lazy engrams from the index.
  * Falls back to standard discovery if no index is found.
  */
-export async function discoverModulesWithLazy(
+export async function discoverEngramsWithLazy(
   basePaths: unknown,
   repoPath?: string,
-): Promise<Module[]> {
-  // First, get normally initialized modules
-  const modules = await discoverModules(basePaths);
+): Promise<Engram[]> {
+  // First, get normally initialized engrams
+  const engrams = await discoverEngrams(basePaths);
 
-  // If we have a repo path, try to get lazy modules from the index
+  // If we have a repo path, try to get lazy engrams from the index
   if (repoPath) {
     const paths = normalizeBasePaths(basePaths);
     const localEngramsDir = paths.find((p) => p.includes(".engrams"));
 
     if (localEngramsDir) {
       try {
-        const lazyModules = await getModulesFromIndex(repoPath, localEngramsDir);
+        const lazyEngrams = await getEngramsFromIndex(repoPath, localEngramsDir);
 
-        // Only add lazy modules that aren't already discovered
-        const existingToolNames = new Set(modules.map((m) => m.toolName));
-        for (const lazyModule of lazyModules) {
-          if (!existingToolNames.has(lazyModule.toolName)) {
-            modules.push(lazyModule);
+        // Only add lazy engrams that aren't already discovered
+        const existingToolNames = new Set(engrams.map((e) => e.toolName));
+        for (const lazyEngram of lazyEngrams) {
+          if (!existingToolNames.has(lazyEngram.toolName)) {
+            engrams.push(lazyEngram);
           }
         }
       } catch (error) {
-        logWarning("Failed to read engram index for lazy modules:", error);
+        logWarning("Failed to read engram index for lazy engrams:", error);
       }
     }
   }
 
-  return modules;
+  return engrams;
 }

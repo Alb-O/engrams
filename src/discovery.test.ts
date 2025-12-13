@@ -3,73 +3,73 @@ import { promises as fs } from "node:fs";
 import path from "node:path";
 import os from "node:os";
 
-import { discoverModules, findModuleFiles } from "./discovery";
-import { createModule } from "./test-utils";
+import { discoverEngrams, findEngramFiles } from "./discovery";
+import { createEngram } from "./test-utils";
 
 describe("discovery", () => {
   let tempDir: string;
 
   beforeEach(async () => {
-    tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "modules-plugin-"));
+    tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "engrams-plugin-"));
   });
 
   afterEach(async () => {
     await fs.rm(tempDir, { recursive: true, force: true });
   });
 
-  describe("findModuleFiles", () => {
-    it("follows symlinked module directories", async () => {
+  describe("findEngramFiles", () => {
+    it("follows symlinked engram directories", async () => {
       const baseDir = path.join(tempDir, ".engrams");
-      const realModuleDir = path.join(tempDir, "real-module");
-      await createModule(realModuleDir, "linked-module");
+      const realEngramDir = path.join(tempDir, "real-engram");
+      await createEngram(realEngramDir, "linked-engram");
 
-      const linkPath = path.join(baseDir, "linked-module");
+      const linkPath = path.join(baseDir, "linked-engram");
       await fs.mkdir(baseDir, { recursive: true });
-      await fs.symlink(realModuleDir, linkPath, "dir");
+      await fs.symlink(realEngramDir, linkPath, "dir");
 
-      const files = await findModuleFiles(baseDir);
+      const files = await findEngramFiles(baseDir);
       expect(files).toContain(path.join(linkPath, "engram.toml"));
     });
   });
 
-  describe("discoverModules", () => {
+  describe("discoverEngrams", () => {
     it("throws error when duplicate tool names are detected across multiple base paths", async () => {
       const configDir = path.join(tempDir, "config");
       const projectDir = path.join(tempDir, "project");
-      const sharedName = "shared-module";
+      const sharedName = "shared-engram";
 
-      await createModule(
+      await createEngram(
         path.join(configDir, sharedName),
         sharedName,
         "Config description is long enough.",
       );
-      await createModule(
+      await createEngram(
         path.join(projectDir, sharedName),
         sharedName,
         "Project description is even longer for testing.",
       );
 
-      await expect(discoverModules([configDir, projectDir])).rejects.toThrow(
+      await expect(discoverEngrams([configDir, projectDir])).rejects.toThrow(
         /Duplicate tool names detected/,
       );
     });
   });
 
-  describe("nested modules", () => {
-    it("discovers nested modules and establishes parent-child relationships", async () => {
+  describe("nested engrams", () => {
+    it("discovers nested engrams and establishes parent-child relationships", async () => {
       const baseDir = path.join(tempDir, ".engrams");
-      const parentDir = path.join(baseDir, "parent-module");
-      const childDir = path.join(parentDir, "child-module");
+      const parentDir = path.join(baseDir, "parent-engram");
+      const childDir = path.join(parentDir, "child-engram");
 
-      await createModule(parentDir, "Parent Module");
-      await createModule(childDir, "Child Module");
+      await createEngram(parentDir, "Parent Engram");
+      await createEngram(childDir, "Child Engram");
 
-      const modules = await discoverModules([baseDir]);
+      const engrams = await discoverEngrams([baseDir]);
 
-      expect(modules.length).toBe(2);
+      expect(engrams.length).toBe(2);
 
-      const parent = modules.find((m) => m.name === "Parent Module");
-      const child = modules.find((m) => m.name === "Child Module");
+      const parent = engrams.find((e) => e.name === "Parent Engram");
+      const child = engrams.find((e) => e.name === "Child Engram");
 
       expect(parent).toBeDefined();
       expect(child).toBeDefined();
@@ -84,23 +84,23 @@ describe("discovery", () => {
       expect(parent?.childToolNames).toContain(child?.toolName);
     });
 
-    it("handles deeply nested modules correctly", async () => {
+    it("handles deeply nested engrams correctly", async () => {
       const baseDir = path.join(tempDir, ".engrams");
       const level1 = path.join(baseDir, "level1");
       const level2 = path.join(level1, "level2");
       const level3 = path.join(level2, "level3");
 
-      await createModule(level1, "Level 1");
-      await createModule(level2, "Level 2");
-      await createModule(level3, "Level 3");
+      await createEngram(level1, "Level 1");
+      await createEngram(level2, "Level 2");
+      await createEngram(level3, "Level 3");
 
-      const modules = await discoverModules([baseDir]);
+      const engrams = await discoverEngrams([baseDir]);
 
-      expect(modules.length).toBe(3);
+      expect(engrams.length).toBe(3);
 
-      const l1 = modules.find((m) => m.name === "Level 1");
-      const l2 = modules.find((m) => m.name === "Level 2");
-      const l3 = modules.find((m) => m.name === "Level 3");
+      const l1 = engrams.find((e) => e.name === "Level 1");
+      const l2 = engrams.find((e) => e.name === "Level 2");
+      const l3 = engrams.find((e) => e.name === "Level 3");
 
       expect(l1?.parentToolName).toBeUndefined();
       expect(l2?.parentToolName).toBe(l1?.toolName);
@@ -111,20 +111,20 @@ describe("discovery", () => {
       expect(l3?.childToolNames).toBeUndefined();
     });
 
-    it("does not set parent relationship for sibling modules", async () => {
+    it("does not set parent relationship for sibling engrams", async () => {
       const baseDir = path.join(tempDir, ".engrams");
       const sibling1 = path.join(baseDir, "sibling1");
       const sibling2 = path.join(baseDir, "sibling2");
 
-      await createModule(sibling1, "Sibling 1");
-      await createModule(sibling2, "Sibling 2");
+      await createEngram(sibling1, "Sibling 1");
+      await createEngram(sibling2, "Sibling 2");
 
-      const modules = await discoverModules([baseDir]);
+      const engrams = await discoverEngrams([baseDir]);
 
-      expect(modules.length).toBe(2);
+      expect(engrams.length).toBe(2);
 
-      const s1 = modules.find((m) => m.name === "Sibling 1");
-      const s2 = modules.find((m) => m.name === "Sibling 2");
+      const s1 = engrams.find((e) => e.name === "Sibling 1");
+      const s2 = engrams.find((e) => e.name === "Sibling 2");
 
       // Neither should have a parent
       expect(s1?.parentToolName).toBeUndefined();
@@ -141,17 +141,17 @@ describe("discovery", () => {
       const child1Dir = path.join(parentDir, "child1");
       const child2Dir = path.join(parentDir, "child2");
 
-      await createModule(parentDir, "Parent");
-      await createModule(child1Dir, "Child 1");
-      await createModule(child2Dir, "Child 2");
+      await createEngram(parentDir, "Parent");
+      await createEngram(child1Dir, "Child 1");
+      await createEngram(child2Dir, "Child 2");
 
-      const modules = await discoverModules([baseDir]);
+      const engrams = await discoverEngrams([baseDir]);
 
-      expect(modules.length).toBe(3);
+      expect(engrams.length).toBe(3);
 
-      const parent = modules.find((m) => m.name === "Parent");
-      const c1 = modules.find((m) => m.name === "Child 1");
-      const c2 = modules.find((m) => m.name === "Child 2");
+      const parent = engrams.find((e) => e.name === "Parent");
+      const c1 = engrams.find((e) => e.name === "Child 1");
+      const c2 = engrams.find((e) => e.name === "Child 2");
 
       expect(parent?.childToolNames).toHaveLength(2);
       expect(parent?.childToolNames).toContain(c1?.toolName);
@@ -168,17 +168,17 @@ describe("discovery", () => {
       const intermediateDir = path.join(parentDir, "intermediate");
       const grandchildDir = path.join(intermediateDir, "grandchild");
 
-      await createModule(parentDir, "Parent");
-      // No module at intermediateDir - just create directory
+      await createEngram(parentDir, "Parent");
+      // No engram at intermediateDir - just create directory
       await fs.mkdir(intermediateDir, { recursive: true });
-      await createModule(grandchildDir, "Grandchild");
+      await createEngram(grandchildDir, "Grandchild");
 
-      const modules = await discoverModules([baseDir]);
+      const engrams = await discoverEngrams([baseDir]);
 
-      expect(modules.length).toBe(2);
+      expect(engrams.length).toBe(2);
 
-      const parent = modules.find((m) => m.name === "Parent");
-      const grandchild = modules.find((m) => m.name === "Grandchild");
+      const parent = engrams.find((e) => e.name === "Parent");
+      const grandchild = engrams.find((e) => e.name === "Grandchild");
 
       // Grandchild's parent should be the parent (skipping intermediate directory)
       expect(grandchild?.parentToolName).toBe(parent?.toolName);

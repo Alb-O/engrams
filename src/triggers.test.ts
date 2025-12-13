@@ -1,7 +1,7 @@
 import { describe, it, expect } from "bun:test";
 
 import { buildContextTriggerMatchers, compileContextTrigger } from "./triggers";
-import type { Module } from "./types";
+import type { Engram } from "./types";
 
 describe("triggers", () => {
   const matches = (regexes: RegExp[], text: string) =>
@@ -26,8 +26,8 @@ describe("triggers", () => {
   });
 
   describe("buildContextTriggerMatchers", () => {
-    it("builds matchers that keep triggerless modules visible", () => {
-      const modules: Module[] = [
+    it("builds matchers that keep triggerless engrams visible", () => {
+      const engrams: Engram[] = [
         {
           name: "Docs",
           directory: "/tmp/docs",
@@ -47,7 +47,7 @@ describe("triggers", () => {
         },
       ];
 
-      const matchers = buildContextTriggerMatchers(modules);
+      const matchers = buildContextTriggerMatchers(engrams);
       const alwaysVisible = matchers
         .filter((matcher) => matcher.alwaysVisible)
         .map((matcher) => matcher.toolName);
@@ -64,7 +64,7 @@ describe("triggers", () => {
     });
 
     it("builds matchers with separate regex arrays for each trigger type", () => {
-      const modules: Module[] = [
+      const engrams: Engram[] = [
         {
           name: "FileDetector",
           directory: "/tmp/file-detector",
@@ -94,7 +94,7 @@ describe("triggers", () => {
         },
       ];
 
-      const matchers = buildContextTriggerMatchers(modules);
+      const matchers = buildContextTriggerMatchers(engrams);
 
       const fileDetector = matchers.find(
         (m) => m.toolName === "engram_file_detector",
@@ -120,7 +120,7 @@ describe("triggers", () => {
     });
 
     it("trigger arrays control which text source is matched", () => {
-      const modules: Module[] = [
+      const engrams: Engram[] = [
         {
           name: "AnyMsg",
           directory: "/tmp/any-msg",
@@ -150,7 +150,7 @@ describe("triggers", () => {
         },
       ];
 
-      const matchers = buildContextTriggerMatchers(modules);
+      const matchers = buildContextTriggerMatchers(engrams);
 
       // Simulate message parts: user text is non-synthetic, agent text is synthetic
       const parts = [
@@ -203,7 +203,7 @@ describe("triggers", () => {
     });
 
     it("user-msg triggers match when pattern is in user text", () => {
-      const modules: Module[] = [
+      const engrams: Engram[] = [
         {
           name: "AnyMsg",
           directory: "/tmp/any-msg",
@@ -233,7 +233,7 @@ describe("triggers", () => {
         },
       ];
 
-      const matchers = buildContextTriggerMatchers(modules);
+      const matchers = buildContextTriggerMatchers(engrams);
 
       const parts = [
         {

@@ -2,24 +2,24 @@ import * as TOML from "@iarna/toml";
 import { promises as fs } from "fs";
 import { basename, dirname, join, relative, sep } from "path";
 import { z } from "zod";
-import type { Module } from "./types";
+import type { Engram } from "./types";
 import { logWarning, logError } from "./logging";
 
-/** Manifest filename at module root */
+/** Manifest filename at engram root */
 export const MANIFEST_FILENAME = "engram.toml";
-/** Default prompt file relative to module root */
+/** Default prompt file relative to engram root */
 const DEFAULT_PROMPT_PATH = "README.md";
 
-const ModuleManifestSchema = z.object({
+const EngramManifestSchema = z.object({
   name: z.string().min(1, "Name cannot be empty"),
   description: z
     .string()
     .min(20, "Description must be at least 20 characters for discoverability"),
   version: z.string().optional(),
   license: z.string().optional(),
-  /** Relative path to prompt file from module root. Defaults to README.md */
+  /** Relative path to prompt file from engram root. Defaults to README.md */
   prompt: z.string().optional(),
-  /** Trigger configuration for progressive module discovery */
+  /** Trigger configuration for progressive engram discovery */
   triggers: z
     .object({
       /** Triggers that match any message (user or agent) */
@@ -40,11 +40,11 @@ const ModuleManifestSchema = z.object({
     .optional(),
 });
 
-type ModuleManifest = z.infer<typeof ModuleManifestSchema>;
+type EngramManifest = z.infer<typeof EngramManifestSchema>;
 
 function logManifestErrors(
   manifestPath: string,
-  error: z.ZodError<ModuleManifest>,
+  error: z.ZodError<EngramManifest>,
 ) {
   logError(`Invalid manifest in ${manifestPath}:`);
   for (const issue of error.issues) {
@@ -52,10 +52,10 @@ function logManifestErrors(
   }
 }
 
-export function generateToolName(modulePath: string, baseDir?: string): string {
-  if (typeof modulePath !== "string" || modulePath.length === 0) {
+export function generateToolName(engramPath: string, baseDir?: string): string {
+  if (typeof engramPath !== "string" || engramPath.length === 0) {
     logWarning(
-      "Received invalid module path while generating tool name; defaulting to engram_unknown.",
+      "Received invalid engram path while generating tool name; defaulting to engram_unknown.",
     );
     return "engram_unknown";
   }
@@ -63,12 +63,12 @@ export function generateToolName(modulePath: string, baseDir?: string): string {
   const safeBase =
     typeof baseDir === "string" && baseDir.length > 0
       ? baseDir
-      : dirname(modulePath);
-  const relativePath = relative(safeBase, modulePath);
+      : dirname(engramPath);
+  const relativePath = relative(safeBase, engramPath);
   const dirPath = dirname(relativePath);
 
   if (dirPath === "." || dirPath === "") {
-    const folder = basename(dirname(modulePath));
+    const folder = basename(dirname(engramPath));
     return `engram_${folder.replace(/-/g, "_")}`;
   }
 
@@ -77,34 +77,34 @@ export function generateToolName(modulePath: string, baseDir?: string): string {
 }
 
 /**
- * Parses a module from its manifest file.
+ * Parses an engram from its manifest file.
  * @param manifestPath - Path to the engram.toml file
  * @param baseDir - Base directory for generating tool names
  */
-export async function parseModule(
+export async function parseEngram(
   manifestPath: string,
   baseDir: string,
-): Promise<Module | null> {
+): Promise<Engram | null> {
   if (typeof manifestPath !== "string" || manifestPath.length === 0) {
-    logWarning("Skipping module with invalid path:", manifestPath);
+    logWarning("Skipping engram with invalid path:", manifestPath);
     return null;
   }
 
-  const moduleDirectory = dirname(manifestPath);
+  const engramDirectory = dirname(manifestPath);
 
   try {
     const manifestRaw = await fs.readFile(manifestPath, "utf8");
     const manifestData = TOML.parse(manifestRaw);
-    const parsed = ModuleManifestSchema.safeParse(manifestData);
+    const parsed = EngramManifestSchema.safeParse(manifestData);
 
     if (!parsed.success) {
       logManifestErrors(manifestPath, parsed.error);
       return null;
     }
 
-    // Read prompt file (configurable via manifest, defaults to README.md at module root)
+    // Read prompt file (configurable via manifest, defaults to README.md at engram root)
     const promptRelativePath = parsed.data.prompt || DEFAULT_PROMPT_PATH;
-    const promptPath = join(moduleDirectory, promptRelativePath);
+    const promptPath = join(engramDirectory, promptRelativePath);
 
     let promptContent = "";
     try {
@@ -125,7 +125,7 @@ export async function parseModule(
 
     return {
       name: parsed.data.name,
-      directory: moduleDirectory,
+      directory: engramDirectory,
       toolName: generateToolName(manifestPath, baseDir),
       description: parsed.data.description,
       allowedTools: parsed.data["allowed-tools"],
@@ -142,7 +142,7 @@ export async function parseModule(
       manifestPath,
     };
   } catch (error) {
-    logError(`Error parsing module ${manifestPath}:`, error);
+    logError(`Error parsing engram ${manifestPath}:`, error);
     return null;
   }
 }

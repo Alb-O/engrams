@@ -1,18 +1,18 @@
-// Re-export all public APIs from focused modules for backward compatibility
-export type { Module, ContextTriggerMatcher, FileTreeOptions } from "./types";
+// Re-export all public APIs from focused source files
+export type { Engram, ContextTriggerMatcher, FileTreeOptions } from "./types";
 export { logWarning, logError } from "./logging";
 export {
   expandBraces,
   compileContextTrigger,
   buildContextTriggerMatchers,
 } from "./triggers";
-export { generateToolName, parseModule } from "./manifest";
+export { generateToolName, parseEngram } from "./manifest";
 export {
-  findModuleFiles,
-  discoverModules,
-  discoverModulesWithLazy,
-  getDefaultModulePaths,
+  findEngramFiles,
+  discoverEngrams,
+  discoverEngramsWithLazy,
+  getDefaultEngramPaths,
   readIndexRef,
-  getModulesFromIndex,
+  getEngramsFromIndex,
 } from "./discovery";
 export { generateFileTree } from "./file-tree";

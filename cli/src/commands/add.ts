@@ -7,7 +7,7 @@ import {
   getModulePaths,
   findProjectRoot,
   parseRepoUrl,
-  getModuleName,
+  getEngramName,
   getSupportedDomains,
 } from "../utils";
 import { submoduleAddFromCache, cloneFromCache, isCached } from "../cache";
@@ -31,7 +31,7 @@ export const add = command({
       type: optional(string),
       long: "name",
       short: "n",
-      description: "Custom name for the module (defaults to repo name)",
+      description: "Custom name for the engram (defaults to repo name)",
     }),
     global: flag({
       long: "global",
@@ -47,7 +47,7 @@ export const add = command({
     force: flag({
       long: "force",
       short: "f",
-      description: "Force add, removing existing module if present",
+      description: "Force add, removing existing engram if present",
     }),
     noCache: flag({
       long: "no-cache",
@@ -67,13 +67,13 @@ export const add = command({
       process.exit(1);
     }
 
-    const moduleName = name || getModuleName(parsed.repo);
+    const engramName = name || getEngramName(parsed.repo);
     const projectRoot = findProjectRoot();
     const paths = getModulePaths(projectRoot || undefined);
 
     let targetDir: string;
     if (isGlobal) {
-      targetDir = path.join(paths.global, moduleName);
+      targetDir = path.join(paths.global, engramName);
     } else {
       if (!projectRoot) {
         console.error(pc.red("Error: Not in a project directory"));
@@ -84,7 +84,7 @@ export const add = command({
         );
         process.exit(1);
       }
-      targetDir = path.join(paths.local!, moduleName);
+      targetDir = path.join(paths.local!, engramName);
     }
 
     // Force clean any existing submodule state (handles broken/partial submodules)
@@ -133,11 +133,11 @@ export const add = command({
         fs.rmSync(targetDir, { recursive: true, force: true });
       }
       console.log(
-        pc.yellow(`Cleaned up existing module state for ${moduleName}`),
+        pc.yellow(`Cleaned up existing engram state for ${engramName}`),
       );
     } else if (fs.existsSync(targetDir)) {
       // Check if already exists (non-force mode)
-      console.error(pc.red(`Error: Module already exists at ${targetDir}`));
+      console.error(pc.red(`Error: Engram already exists at ${targetDir}`));
       console.error(pc.dim("Use --force to overwrite"));
       process.exit(1);
     }
@@ -149,7 +149,7 @@ export const add = command({
     }
 
     console.log(
-      pc.blue(`Adding ${parsed.owner}/${parsed.repo} as ${moduleName}...`),
+      pc.blue(`Adding ${parsed.owner}/${parsed.repo} as ${engramName}...`),
     );
 
     const cached = isCached(parsed.url);
@@ -178,7 +178,7 @@ export const add = command({
         console.log(pc.green(`✓ Added as submodule: ${targetDir}`));
 
         // Update the index with the new engram
-        updateIndexAfterAdd(projectRoot!, moduleName, parsed.url);
+        updateIndexAfterAdd(projectRoot!, engramName, parsed.url);
       } else {
         // Clone directly (for global or when --clone is specified)
         if (noCache) {
@@ -193,7 +193,7 @@ export const add = command({
     } catch (error: any) {
       const errorMessage =
         error?.message || error?.stderr?.toString() || String(error);
-      console.error(pc.red("Failed to add module:"));
+      console.error(pc.red("Failed to add engram:"));
       console.error(pc.dim(errorMessage));
       if (error?.status) {
         console.error(pc.dim(`Exit code: ${error.status}`));
@@ -208,10 +208,10 @@ export const add = command({
  */
 function updateIndexAfterAdd(
   projectRoot: string,
-  moduleName: string,
+  engramName: string,
   url: string,
 ): void {
-  const tomlPath = path.join(projectRoot, ".engrams", moduleName, "engram.toml");
+  const tomlPath = path.join(projectRoot, ".engrams", engramName, "engram.toml");
 
   if (!fs.existsSync(tomlPath)) {
     console.log(pc.dim("  No engram.toml found, skipping index update"));
@@ -228,7 +228,7 @@ function updateIndexAfterAdd(
 
   // Read existing index or create new one
   const index = readIndex(projectRoot) || {};
-  index[moduleName] = entry;
+  index[engramName] = entry;
 
   writeIndex(projectRoot, index);
   console.log(pc.dim("  Updated refs/engrams/index"));

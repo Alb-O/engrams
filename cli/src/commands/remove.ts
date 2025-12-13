@@ -12,12 +12,12 @@ export const remove = command({
     name: positional({
       type: { from: async (s) => s },
       displayName: "name",
-      description: "Name of the module to remove",
+      description: "Name of the engram to remove",
     }),
     global: flag({
       long: "global",
       short: "g",
-      description: "Remove from global modules",
+      description: "Remove from global engrams",
     }),
     force: flag({
       long: "force",
@@ -37,7 +37,7 @@ export const remove = command({
     } else {
       if (!projectRoot || !paths.local) {
         console.error(pc.red("Error: Not in a project directory"));
-        console.error(pc.dim("Use --global to remove a global module"));
+        console.error(pc.dim("Use --global to remove a global engram"));
         process.exit(1);
       }
       targetDir = path.join(paths.local, name);
@@ -58,7 +58,7 @@ export const remove = command({
     }
 
     if (!fs.existsSync(targetDir)) {
-      console.error(pc.red(`Error: Module not found: ${name}`));
+      console.error(pc.red(`Error: Engram not found: ${name}`));
       console.error(pc.dim(`Looked in: ${targetDir}`));
       process.exit(1);
     }
@@ -115,7 +115,7 @@ export const remove = command({
     } catch (error: any) {
       const errorMessage =
         error?.message || error?.stderr?.toString() || String(error);
-      console.error(pc.red("Failed to remove module:"));
+      console.error(pc.red("Failed to remove engram:"));
       console.error(pc.dim(errorMessage));
       process.exit(1);
     }

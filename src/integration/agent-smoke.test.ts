@@ -1,5 +1,5 @@
 /**
- * Agent smoke test for engrams plugin using a synthetic module set.
+ * Agent smoke test for engrams plugin using a synthetic engram set.
  * Requires opencode CLI, free model opencode/big-pickle, and RUN_AGENT_SMOKE=true.
  */
 import { describe, it, expect } from "bun:test";
@@ -39,7 +39,7 @@ interface TestContext {
   testDir: string;
 }
 
-async function createModule(
+async function createEngram(
   root: string,
   slug: string,
   name: string,
@@ -47,8 +47,8 @@ async function createModule(
   triggers: string[] | undefined,
   readme: string,
 ) {
-  const moduleDir = path.join(root, slug);
-  await fs.mkdir(moduleDir, { recursive: true });
+  const engramDir = path.join(root, slug);
+  await fs.mkdir(engramDir, { recursive: true });
 
   const manifestLines = [
     `name = "${name}"`,
@@ -67,10 +67,10 @@ async function createModule(
   manifestLines.push("");
 
   await fs.writeFile(
-    path.join(moduleDir, "engram.toml"),
+    path.join(engramDir, "engram.toml"),
     manifestLines.join("\n"),
   );
-  await fs.writeFile(path.join(moduleDir, "README.md"), readme);
+  await fs.writeFile(path.join(engramDir, "README.md"), readme);
 }
 
 async function setupTestDir(): Promise<TestContext> {
@@ -100,26 +100,26 @@ async function setupTestDir(): Promise<TestContext> {
     '{"$schema":"https://opencode.ai/config.json"}\n',
   );
 
-  // Synthetic module set
-  const modulesRoot = path.join(testDir, ".engrams");
-  await createModule(
-    modulesRoot,
+  // Synthetic engram set
+  const engramsRoot = path.join(testDir, ".engrams");
+  await createEngram(
+    engramsRoot,
     "always-on",
-    "Always-on helper module",
-    "Helper module that is always available without triggers.",
+    "Always-on helper engram",
+    "Helper engram that is always available without triggers.",
     undefined,
-    "Always-on helper module.",
+    "Always-on helper engram.",
   );
-  await createModule(
-    modulesRoot,
+  await createEngram(
+    engramsRoot,
     "doc-style",
-    "Documentation style guidance module",
+    "Documentation style guidance engram",
     "Documentation style guide with docstring triggers for activation.",
     ["docstring{s,}", "documentation"],
     "Doc style guidance README.",
   );
-  await createModule(
-    modulesRoot,
+  await createEngram(
+    engramsRoot,
     "assets",
     "PDF document processing helper",
     "Helper for PDF document extraction and processing.",
@@ -162,7 +162,7 @@ async function runOpencode(
 
 describe.skipIf(!shouldRun)("engrams agent smoke", () => {
   it(
-    "hides triggered modules until a trigger phrase appears",
+    "hides triggered engrams until a trigger phrase appears",
     async () => {
       const ctx = await setupTestDir();
 
