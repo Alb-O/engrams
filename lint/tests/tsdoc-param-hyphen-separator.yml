@@ -1,0 +1,25 @@
+id: tsdoc-param-hyphen-separator
+valid:
+  - |
+    /**
+     * @param name - The name
+     */
+    function test(name: string) {}
+  - |
+    /**
+     * @param foo - First param
+     * @param bar - Second param
+     */
+    function create(foo: string, bar: number) {}
+
+invalid:
+  - |
+    /**
+     * @param name The name
+     */
+    function test(name: string) {}
+  - |
+    /**
+     * @param name: The name
+     */
+    function test(name: string) {}

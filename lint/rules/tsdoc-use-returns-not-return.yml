@@ -1,0 +1,18 @@
+id: tsdoc-use-returns-not-return
+language: typescript
+severity: warning
+message: "Use @returns instead of @return in TSDoc comments."
+note: |
+  TSDoc uses @returns (plural) for return value documentation.
+  
+  Instead of:
+    /** @return The parsed value */
+  
+  Use:
+    /** @returns The parsed value */
+files:
+  - src/**/*.ts
+rule:
+  pattern: $DOC
+  kind: comment
+  regex: "@return\\s"

@@ -1,0 +1,25 @@
+id: tsdoc-no-type-in-param
+valid:
+  - |
+    /**
+     * @param name - The name
+     */
+    function test(name: string) {}
+  - |
+    /**
+     * @param foo - First param
+     * @param bar - Second param
+     */
+    function create(foo: string, bar: number) {}
+
+invalid:
+  - |
+    /**
+     * @param {string} name - The name
+     */
+    function test(name: string) {}
+  - |
+    /**
+     * @param {number} count The count
+     */
+    function count(count: number) {}

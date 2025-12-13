@@ -1,0 +1,25 @@
+id: require-tsdoc-param
+valid:
+  - |
+    /**
+     * @param foo - Description
+     */
+    function test(foo: string) {}
+  - |
+    /**
+     * @param name - The name
+     * @param value - The value
+     */
+    export function create(name: string, value: number) {}
+
+invalid:
+  - |
+    /**
+     * @arg foo - Description
+     */
+    function test(foo: string) {}
+  - |
+    /**
+     * @argument foo - Description
+     */
+    function test(foo: string) {}

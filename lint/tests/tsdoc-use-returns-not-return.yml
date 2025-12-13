@@ -1,0 +1,20 @@
+id: tsdoc-use-returns-not-return
+valid:
+  - |
+    /**
+     * @returns The parsed value
+     */
+    function parse(): string {}
+  - |
+    /** @returns Nothing important */
+    function doWork(): void {}
+
+invalid:
+  - |
+    /**
+     * @return The parsed value
+     */
+    function parse(): string {}
+  - |
+    /** @return Nothing */
+    function doWork(): void {}

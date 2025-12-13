@@ -1,0 +1,19 @@
+id: tsdoc-no-type-in-returns
+language: typescript
+severity: warning
+message: "Don't include types in @returns tags - TypeScript provides type info."
+note: |
+  TSDoc @returns tags should not include JSDoc-style type annotations.
+  TypeScript already provides type information.
+  
+  Instead of:
+    /** @returns {Promise<string>} The result */
+  
+  Use:
+    /** @returns The result */
+files:
+  - src/**/*.ts
+rule:
+  pattern: $DOC
+  kind: comment
+  regex: "@returns?\\s*\\{[^}]+\\}"

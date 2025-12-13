@@ -1,0 +1,22 @@
+id: tsdoc-no-type-in-returns
+valid:
+  - |
+    /**
+     * @returns The parsed value
+     */
+    function parse(): string {}
+  - |
+    /** @returns A promise that resolves to the result */
+    async function fetch(): Promise<Data> {}
+
+invalid:
+  - |
+    /**
+     * @returns {string} The parsed value
+     */
+    function parse(): string {}
+  - |
+    /**
+     * @return {Promise<Data>} The result
+     */
+    async function fetch(): Promise<Data> {}

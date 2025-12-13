@@ -1,0 +1,22 @@
+id: tsdoc-param-hyphen-separator
+language: typescript
+severity: hint
+message: "Use hyphen separator after @param name: @param name - Description"
+note: |
+  TSDoc convention uses a hyphen to separate parameter name from description.
+  
+  Instead of:
+    /** @param name The name of the item */
+    /** @param name: The name of the item */
+  
+  Use:
+    /** @param name - The name of the item */
+files:
+  - src/**/*.ts
+rule:
+  pattern: $DOC
+  kind: comment
+  all:
+    - regex: "@param\\s+\\w+"
+    - not:
+        regex: "@param\\s+\\w+\\s+-"

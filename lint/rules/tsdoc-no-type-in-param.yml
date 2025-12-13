@@ -1,0 +1,19 @@
+id: tsdoc-no-type-in-param
+language: typescript
+severity: warning
+message: "Don't include types in @param tags - TypeScript provides type info."
+note: |
+  TSDoc @param tags should not include JSDoc-style type annotations.
+  TypeScript already provides type information.
+  
+  Instead of:
+    /** @param {string} name - The name */
+  
+  Use:
+    /** @param name - The name */
+files:
+  - src/**/*.ts
+rule:
+  pattern: $DOC
+  kind: comment
+  regex: "@param\\s*\\{[^}]+\\}"

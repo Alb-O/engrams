@@ -1,0 +1,25 @@
+id: require-tsdoc-param
+language: typescript
+severity: warning
+message: "Use @param tags in TSDoc comments, not @arg or @argument."
+note: |
+  TSDoc uses @param for parameter documentation.
+  
+  Instead of:
+    /** @arg foo - description */
+    /** @argument foo - description */
+  
+  Use:
+    /** @param foo - description */
+files:
+  - src/**/*.ts
+ignores:
+  - src/**/*.test.ts
+rule:
+  any:
+    - pattern: $DOC
+      kind: comment
+      regex: "@arg\\s"
+    - pattern: $DOC
+      kind: comment
+      regex: "@argument\\s"
