@@ -7,5 +7,6 @@
 - AVOID `else` statements
 - AVOID using `any` type
 - AVOID `let` statements
+- AVOID trivial one-line comments that just re-explain snippets of code
 - PREFER single word variable names where possible
 - Use as many bun apis as possible like Bun.file()
