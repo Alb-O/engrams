@@ -45,17 +45,35 @@ const DOMAIN_ALIASES: Record<string, string> = {
   srht: "git.sr.ht",
 };
 
+const MAX_INPUT_LENGTH = 2048;
+const VALID_NAME_PATTERN = /^[\w][\w.-]*$/;
+
+function validateOwnerRepo(owner: string, repo: string): boolean {
+  if (!owner || !repo) return false;
+  if (owner.length > 100 || repo.length > 100) return false;
+  if (!VALID_NAME_PATTERN.test(owner) || !VALID_NAME_PATTERN.test(repo)) return false;
+  if (owner.startsWith(".") || owner.startsWith("-")) return false;
+  if (repo.startsWith(".") || repo.startsWith("-")) return false;
+  return true;
+}
+
 export function parseRepoUrl(
   input: string,
 ): { owner: string; repo: string; url: string } | null {
+  if (!input || typeof input !== "string") return null;
+
+  const trimmed = input.trim();
+  if (trimmed.length === 0 || trimmed.length > MAX_INPUT_LENGTH) return null;
+
   // Handle full URLs (https or git@)
-  const urlMatch = input.match(
+  const urlMatch = trimmed.match(
     /(?:https?:\/\/|git@)([^/:]+)[/:]([^/]+)\/([^/.\s]+)/,
   );
   if (urlMatch) {
     const domain = urlMatch[1];
     const owner = urlMatch[2];
     const repo = urlMatch[3].replace(/\.git$/, "");
+    if (!validateOwnerRepo(owner, repo)) return null;
     return {
       owner,
       repo,
@@ -64,7 +82,7 @@ export function parseRepoUrl(
   }
 
   // Handle domain-prefixed shorthand: domain:owner/repo
-  const domainMatch = input.match(/^([a-z]+):([^/]+)\/([^/]+)$/);
+  const domainMatch = trimmed.match(/^([a-z]+):([^/]+)\/([^/]+)$/);
   if (domainMatch) {
     const alias = domainMatch[1];
     const owner = domainMatch[2];
@@ -73,6 +91,7 @@ export function parseRepoUrl(
     if (!domain) {
       return null; // Unknown domain alias
     }
+    if (!validateOwnerRepo(owner, repo)) return null;
     return {
       owner,
       repo,
@@ -81,12 +100,15 @@ export function parseRepoUrl(
   }
 
   // Handle simple shorthand: owner/repo (defaults to GitHub)
-  const shortMatch = input.match(/^([^/:]+)\/([^/:]+)$/);
+  const shortMatch = trimmed.match(/^([^/:]+)\/([^/:]+)$/);
   if (shortMatch) {
+    const owner = shortMatch[1];
+    const repo = shortMatch[2];
+    if (!validateOwnerRepo(owner, repo)) return null;
     return {
-      owner: shortMatch[1],
-      repo: shortMatch[2],
-      url: `https://github.com/${shortMatch[1]}/${shortMatch[2]}.git`,
+      owner,
+      repo,
+      url: `https://github.com/${owner}/${repo}.git`,
     };
   }
 

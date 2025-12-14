@@ -95,15 +95,48 @@ interface AddParams {
 async function handleAdd({ parsed, engramName, projectRoot, targetDir, isGlobal, clone, force, noCache }: AddParams) {
   if (force && !isGlobal && projectRoot) {
     const relativePath = path.relative(projectRoot, targetDir);
-    Bun.spawnSync(["git", "submodule", "deinit", "-f", relativePath], {
+
+    if (relativePath.startsWith("..") || path.isAbsolute(relativePath)) {
+      fail(`Force cleanup refused: target path escapes project root`);
+      info(`  Project root: ${projectRoot}\n  Target: ${targetDir}`);
+      process.exit(1);
+    }
+
+    info(`Force removing existing engram: ${relativePath}`);
+
+    const deinitResult = Bun.spawnSync(["git", "submodule", "deinit", "-f", relativePath], {
       cwd: projectRoot,
+      stderr: "pipe",
     });
-    Bun.spawnSync(["git", "rm", "-f", relativePath], {
+    if (!deinitResult.success) {
+      const stderr = deinitResult.stderr?.toString().trim();
+      if (stderr && !stderr.includes("did not match any file")) {
+        warn(`git submodule deinit: ${stderr}`);
+      }
+    }
+
+    const rmResult = Bun.spawnSync(["git", "rm", "-f", relativePath], {
       cwd: projectRoot,
+      stderr: "pipe",
     });
+    if (!rmResult.success) {
+      const stderr = rmResult.stderr?.toString().trim();
+      if (stderr && !stderr.includes("did not match any file")) {
+        warn(`git rm: ${stderr}`);
+      }
+    }
+
     const dotGitPath = path.join(projectRoot, ".git");
     const gitDir = resolveGitDir(projectRoot, dotGitPath);
     const gitModulesPath = path.join(gitDir, "modules", relativePath);
+
+    const realGitModulesPath = fs.existsSync(gitModulesPath) ? fs.realpathSync(gitModulesPath) : gitModulesPath;
+    if (!realGitModulesPath.startsWith(fs.realpathSync(gitDir))) {
+      fail(`Force cleanup refused: git modules path escapes .git directory`);
+      info(`  Git dir: ${gitDir}\n  Modules path: ${gitModulesPath}`);
+      process.exit(1);
+    }
+
     if (fs.existsSync(gitModulesPath)) {
       fs.rmSync(gitModulesPath, { recursive: true, force: true });
     }

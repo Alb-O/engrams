@@ -64,7 +64,7 @@ export async function findEngramFiles(basePath: string): Promise<string[]> {
       continue;
     }
 
-    const realCurrent = await fs.realpath(current);
+    const realCurrent = await safeRealpath(current);
 
     if (visited.has(realCurrent)) {
       continue;

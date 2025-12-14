@@ -9,7 +9,8 @@
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import * as path from "node:path";
 import TOML from "@iarna/toml";
-import { INDEX_REF, ENGRAMS_DIR, MANIFEST_FILENAME } from "../constants";
+import { INDEX_REF, ENGRAMS_DIR, MANIFEST_FILENAME, CONTENT_DIR } from "../constants";
+import { warn } from "../logging";
 
 export interface EngramIndexEntry {
   name: string;
@@ -65,7 +66,7 @@ function gitOk(args: string[], cwd: string): boolean {
 }
 
 /**
- * Run a git command, throwing on failure.
+ * Run a git command, throwing on failure with command context.
  */
 function gitExec(args: string[], cwd: string, input?: string): string {
   const result = Bun.spawnSync(["git", ...args], {
@@ -73,8 +74,9 @@ function gitExec(args: string[], cwd: string, input?: string): string {
     stdin: input ? Buffer.from(input) : undefined,
   });
   if (!result.success) {
-    const stderr = result.stderr.toString();
-    throw new Error(`git ${args[0]} failed: ${stderr}`);
+    const stderr = result.stderr.toString().trim();
+    const cmd = ["git", ...args].join(" ");
+    throw new Error(`Command failed: ${cmd}\n  ${stderr || "Unknown error"}`);
   }
   return result.stdout.toString().trim();
 }
@@ -258,11 +260,15 @@ export function buildIndexFromEngrams(repoPath: string): EngramIndex {
         delete wrapAny._lock;
 
         if (shouldLock) {
-          const contentDir = path.join(engramPath, "content");
+          const contentDir = path.join(engramPath, CONTENT_DIR);
           const lockedSha = git(["rev-parse", "HEAD"], contentDir);
           if (lockedSha) {
             parsed.wrap.locked = lockedSha;
           } else {
+            warn(
+              `Engram '${entry.name}' has lock=true but ${CONTENT_DIR}/ dir has no HEAD.\n` +
+                `  Run 'engram lazy-init ${entry.name}' first to fetch content.`,
+            );
             delete parsed.wrap.locked;
           }
         } else {
@@ -294,19 +300,38 @@ export function pushIndex(repoPath: string, remote: string = "origin"): void {
   const result = Bun.spawnSync(["git", "push", remote, `+${INDEX_REF}:${INDEX_REF}`], {
     cwd: repoPath,
     stdout: "inherit",
-    stderr: "inherit",
+    stderr: "pipe",
   });
   if (!result.success) {
-    throw new Error("Failed to push index ref");
+    const stderr = result.stderr?.toString().trim();
+    throw new Error(
+      `Failed to push index ref to ${remote}\n` +
+        `  Command: git push ${remote} +${INDEX_REF}:${INDEX_REF}\n` +
+        `  ${stderr || "Unknown error"}`,
+    );
   }
 }
 
 /**
  * Fetch the index ref from remote.
- * Returns true on success, false on failure.
+ * Returns result object with success flag and optional error message.
  */
-export function fetchIndex(repoPath: string, remote: string = "origin"): boolean {
-  return gitOk(["fetch", remote, `${INDEX_REF}:${INDEX_REF}`], repoPath);
+export function fetchIndex(
+  repoPath: string,
+  remote: string = "origin",
+): { success: boolean; error?: string } {
+  const result = Bun.spawnSync(["git", "fetch", remote, `${INDEX_REF}:${INDEX_REF}`], {
+    cwd: repoPath,
+    stderr: "pipe",
+  });
+  if (result.success) {
+    return { success: true };
+  }
+  const stderr = result.stderr?.toString().trim();
+  return {
+    success: false,
+    error: stderr || "Unknown error",
+  };
 }
 
 /**

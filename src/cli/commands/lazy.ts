@@ -121,10 +121,9 @@ export const lazyInit = command({
 
     if (shouldFetch) {
       info("Fetching index from remote...");
-      try {
-        fetchIndex(projectRoot);
-      } catch {
-        warn("Could not fetch index (may not exist on remote)");
+      const result = fetchIndex(projectRoot);
+      if (!result.success) {
+        warn(`Could not fetch index: ${result.error}`);
       }
     }
 
@@ -218,10 +217,9 @@ export const showIndex = command({
 
     if (shouldFetch) {
       info("Fetching index from remote...");
-      try {
-        fetchIndex(projectRoot);
-      } catch {
-        warn("Could not fetch index");
+      const result = fetchIndex(projectRoot);
+      if (!result.success) {
+        warn(`Could not fetch index: ${result.error}`);
       }
     }
 

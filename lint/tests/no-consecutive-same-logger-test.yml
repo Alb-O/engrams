@@ -1,0 +1,47 @@
+id: no-consecutive-same-logger
+valid:
+  # Single calls are fine
+  - |
+    info("Hello world");
+  # Different logger types in sequence are fine
+  - |
+    info("Info message");
+    warn("Warning message");
+  # Separated by other statements
+  - |
+    info("First");
+    const x = 1;
+    info("Second");
+  # Separated by if statement
+  - |
+    info("Before");
+    if (condition) {
+      doSomething();
+    }
+    info("After");
+  # Separated by function call
+  - |
+    info("Start");
+    doSomething();
+    info("End");
+  # Multi-line string (the correct pattern)
+  - |
+    info("Line 1\nLine 2\nLine 3");
+invalid:
+  # Consecutive info calls
+  - |
+    info("First");
+    info("Second");
+  # Consecutive warn calls
+  - |
+    warn("Warning 1");
+    warn("Warning 2");
+  # Consecutive log calls
+  - |
+    log("Log 1");
+    log("Log 2");
+  # Three consecutive info calls (each after first flagged)
+  - |
+    info("One");
+    info("Two");
+    info("Three");

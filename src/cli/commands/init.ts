@@ -74,7 +74,7 @@ export const init = command({
       if (configureAutoFetch(targetDir)) {
         info("Configured auto-fetch for refs/engrams/*");
 
-        if (!indexExists(targetDir) && fetchIndex(targetDir)) {
+        if (!indexExists(targetDir) && fetchIndex(targetDir).success) {
           info("Fetched engram index from remote");
         }
       }
