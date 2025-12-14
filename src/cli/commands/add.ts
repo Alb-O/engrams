@@ -139,13 +139,18 @@ async function handleAdd({ parsed, engramName, projectRoot, targetDir, isGlobal,
       cloneDirect(parsed.url, targetDir, noCache);
     }
   } catch (error) {
-    const err = error as Error & { stderr?: Buffer; status?: number };
-    const errorMessage = err.message || err.stderr?.toString() || String(error);
-    fail("Failed to add engram");
-    info(errorMessage);
-    if (err.status) {
-      info(`Exit code: ${err.status}`);
+    const err = error as Error;
+    fail(`Failed to add engram '${engramName}'`);
+    info(`  ${err.message}`);
+    info("");
+    info("Troubleshooting:");
+    info("  - Check if the repository URL is correct and accessible");
+    info("  - Verify you have network connectivity and auth for the remote");
+    info("  - Try --no-cache if cache may be corrupted");
+    if (!isGlobal) {
+      info("  - Use --clone to clone directly instead of as a submodule");
     }
+    info("  - Use --force to overwrite an existing engram");
     process.exit(1);
   }
 }
@@ -175,9 +180,12 @@ function addAsSubmodule(
     const args = ["git", "submodule", "add"];
     if (force) args.push("--force");
     args.push(parsed.url, relativePath);
-    const result = Bun.spawnSync(args, { cwd: projectRoot, stdout: "inherit", stderr: "inherit" });
+    const result = Bun.spawnSync(args, { cwd: projectRoot, stdout: "inherit", stderr: "pipe" });
     if (!result.success) {
-      throw new Error("git submodule add failed");
+      const stderr = result.stderr?.toString().trim();
+      throw new Error(
+        `git submodule add failed for ${parsed.url}${stderr ? `:\n  ${stderr}` : ""}`,
+      );
     }
   } else {
     submoduleAddFromCache(parsed.url, relativePath, projectRoot, { force });
@@ -188,9 +196,10 @@ function addAsSubmodule(
 
 function cloneDirect(url: string, targetDir: string, noCache: boolean) {
   if (noCache) {
-    const result = Bun.spawnSync(["git", "clone", url, targetDir], { stdout: "inherit", stderr: "inherit" });
+    const result = Bun.spawnSync(["git", "clone", url, targetDir], { stdout: "inherit", stderr: "pipe" });
     if (!result.success) {
-      throw new Error("git clone failed");
+      const stderr = result.stderr?.toString().trim();
+      throw new Error(`git clone failed for ${url}${stderr ? `:\n  ${stderr}` : ""}`);
     }
   } else {
     cloneFromCache(url, targetDir);
