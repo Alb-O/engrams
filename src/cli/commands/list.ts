@@ -15,6 +15,10 @@ import {
   ICON_TREE_PIPE,
   ICON_LINE,
   ICON_INDENT,
+  LABEL_PERMANENT,
+  LABEL_MANUAL,
+  LABEL_DISCLOSURE,
+  LABEL_ACTIVATION,
 } from "../icons";
 
 interface EngramInfo {
@@ -205,17 +209,17 @@ function getTriggerSummary(
 
   // No triggers declared at all → permanently visible
   if (!disclosureExplicit && !activationExplicit) {
-    return colors.dim("P");
+    return colors.dim(LABEL_PERMANENT);
   }
 
   // Triggers declared but all empty → manual activation only
   if (disclosureCount === 0 && activationCount === 0) {
-    return colors.dim("M");
+    return colors.dim(LABEL_MANUAL);
   }
 
   const parts: string[] = [];
-  if (disclosureCount > 0) parts.push(`${disclosureCount}D`);
-  if (activationCount > 0) parts.push(`${activationCount}A`);
+  if (disclosureCount > 0) parts.push(`${disclosureCount}${LABEL_DISCLOSURE}`);
+  if (activationCount > 0) parts.push(`${activationCount}${LABEL_ACTIVATION}`);
 
   return colors.dim(parts.join("/"));
 }
@@ -534,7 +538,7 @@ export const list = command({
     raw(
       colors.dim(ICON_LINE.repeat(90) + "\n") +
       colors.dim(`${ICON_READY} ready  ${ICON_PARTIAL} lazy  ${ICON_INACTIVE} not initialized`) + "\n" +
-      colors.dim("P = permanently visible  M = manual only  XD/XA = disclosure/activation triggers")
+      colors.dim(`${LABEL_PERMANENT} = permanently visible  ${LABEL_MANUAL} = manual only  X${LABEL_DISCLOSURE}/X${LABEL_ACTIVATION} = disclosure/activation triggers`)
     );
   },
 });

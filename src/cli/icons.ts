@@ -19,3 +19,9 @@ export const ICON_LINE = "─";
 
 // Section formatting
 export const ICON_INDENT = "│ ";
+
+// Trigger status labels
+export const LABEL_PERMANENT = "P";
+export const LABEL_MANUAL = "M";
+export const LABEL_DISCLOSURE = "D";
+export const LABEL_ACTIVATION = "A";

@@ -13,6 +13,8 @@ import {
   ICON_INACTIVE,
   ICON_BLOCKED,
   ICON_TREE_END,
+  LABEL_DISCLOSURE,
+  LABEL_ACTIVATION,
 } from "../icons";
 
 interface EngramChainNode {
@@ -244,7 +246,7 @@ export const chain = command({
       } else if (!node.hasTriggers) {
         raw(colors.green(ICON_SUCCESS) + " Permanently visible (no triggers)");
       } else {
-        raw(colors.yellow(ICON_WAITING) + ` Requires disclosure (${node.disclosureCount}D/${node.activationCount}A triggers)`);
+        raw(colors.yellow(ICON_WAITING) + ` Requires disclosure (${node.disclosureCount}${LABEL_DISCLOSURE}/${node.activationCount}${LABEL_ACTIVATION} triggers)`);
       }
       return;
     }
@@ -267,7 +269,7 @@ export const chain = command({
         statusText = colors.green("permanent");
       } else {
         statusIcon = colors.yellow(ICON_INACTIVE);
-        statusText = colors.yellow(`${node.disclosureCount}D/${node.activationCount}A`);
+        statusText = colors.yellow(`${node.disclosureCount}${LABEL_DISCLOSURE}/${node.activationCount}${LABEL_ACTIVATION}`);
       }
 
       const nameDisplay = isLast
