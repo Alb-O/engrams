@@ -81,7 +81,6 @@ export interface ContextTriggerMatcher {
 export interface FileTreeOptions {
   maxDepth?: number;
   exclude?: RegExp[];
-  dirsFirst?: boolean;
   ignoreFile?: string;
   includeMetadata?: boolean;
   /**
