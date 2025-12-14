@@ -2,9 +2,18 @@ import { command, positional, string, flag } from "cmd-ts";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import * as TOML from "@iarna/toml";
-import { info, fail, raw, colors } from "../../logging";
+import { fail, raw, colors } from "../../logging";
 import { getModulePaths, findProjectRoot } from "../utils";
 import { MANIFEST_FILENAME } from "../../constants";
+import {
+  ICON_SUCCESS,
+  ICON_FAILURE,
+  ICON_WAITING,
+  ICON_READY,
+  ICON_INACTIVE,
+  ICON_BLOCKED,
+  ICON_TREE_END,
+} from "../icons";
 
 interface EngramChainNode {
   name: string;
@@ -228,14 +237,14 @@ export const chain = command({
     );
 
     if (chainNodes.length === 1) {
-      raw(colors.green("✓") + " Root-level engram (no ancestors)");
+      raw(colors.green(ICON_SUCCESS) + " Root-level engram (no ancestors)");
       const node = chainNodes[0];
       if (node.isManualOnly) {
-        raw(colors.red("✗") + " Manual activation only (never auto-disclosed)");
+        raw(colors.red(ICON_FAILURE) + " Manual activation only (never auto-disclosed)");
       } else if (!node.hasTriggers) {
-        raw(colors.green("✓") + " Permanently visible (no triggers)");
+        raw(colors.green(ICON_SUCCESS) + " Permanently visible (no triggers)");
       } else {
-        raw(colors.yellow("⧖") + ` Requires disclosure (${node.disclosureCount}D/${node.activationCount}A triggers)`);
+        raw(colors.yellow(ICON_WAITING) + ` Requires disclosure (${node.disclosureCount}D/${node.activationCount}A triggers)`);
       }
       return;
     }
@@ -245,19 +254,19 @@ export const chain = command({
     const chainLines = chainNodes.map((node, i) => {
       const isLast = i === chainNodes.length - 1;
       const prefix = i === 0 ? "" : "  ".repeat(i);
-      const connector = i === 0 ? "" : "└─ ";
+      const connector = i === 0 ? "" : ICON_TREE_END + " ";
 
       let statusIcon: string;
       let statusText: string;
 
       if (node.isManualOnly) {
-        statusIcon = colors.red("⊗");
+        statusIcon = colors.red(ICON_BLOCKED);
         statusText = colors.red("manual");
       } else if (!node.hasTriggers) {
-        statusIcon = colors.green("●");
+        statusIcon = colors.green(ICON_READY);
         statusText = colors.green("permanent");
       } else {
-        statusIcon = colors.yellow("○");
+        statusIcon = colors.yellow(ICON_INACTIVE);
         statusText = colors.yellow(`${node.disclosureCount}D/${node.activationCount}A`);
       }
 
@@ -275,18 +284,18 @@ export const chain = command({
     if (manualOnly.length > 0) {
       const manualLines = manualOnly.map((node) => colors.dim(`   - ${node.toolName}`));
       raw(
-        colors.red("✗") + ` ${manualOnly.length} engram(s) are manual-only (will never auto-disclose):\n` +
+        colors.red(ICON_FAILURE) + ` ${manualOnly.length} engram(s) are manual-only (will never auto-disclose):\n` +
         manualLines.join("\n")
       );
     } else if (requiresTriggers.length === 0) {
       raw(
-        colors.green("✓") + " All ancestors are permanently visible\n" +
-        colors.green("✓") + " This engram will be available immediately"
+        colors.green(ICON_SUCCESS) + " All ancestors are permanently visible\n" +
+        colors.green(ICON_SUCCESS) + " This engram will be available immediately"
       );
     } else {
       const triggerLines = requiresTriggers.map((node) => colors.dim(`   - ${node.toolName}`));
       raw(
-        colors.yellow("⧖") + ` ${requiresTriggers.length} engram(s) require trigger-based disclosure:\n` +
+        colors.yellow(ICON_WAITING) + ` ${requiresTriggers.length} engram(s) require trigger-based disclosure:\n` +
         triggerLines.join("\n")
       );
     }

@@ -6,6 +6,16 @@ import { info, raw, colors } from "../../logging";
 import { getModulePaths, findProjectRoot, shortenPath } from "../utils";
 import { readIndex, isSubmoduleInitialized } from "../index-ref";
 import { MANIFEST_FILENAME, CONTENT_DIR, ENGRAMS_DIR } from "../../constants";
+import {
+  ICON_READY,
+  ICON_INACTIVE,
+  ICON_PARTIAL,
+  ICON_TREE_MID,
+  ICON_TREE_END,
+  ICON_TREE_PIPE,
+  ICON_LINE,
+  ICON_INDENT,
+} from "../icons";
 
 interface EngramInfo {
   name: string;
@@ -55,9 +65,9 @@ interface EngramToml {
 }
 
 function getStatusDot(eg: { initialized: boolean; isWrapped?: boolean }): string {
-  if (eg.initialized) return colors.green("●");
-  if (eg.isWrapped) return colors.yellow("◐");
-  return colors.dim("○");
+  if (eg.initialized) return colors.green(ICON_READY);
+  if (eg.isWrapped) return colors.yellow(ICON_PARTIAL);
+  return colors.dim(ICON_INACTIVE);
 }
 
 function parseEngramToml(tomlPath: string): {
@@ -225,8 +235,8 @@ function buildEngramTreeLines(
   for (let i = 0; i < engrams.length; i++) {
     const eg = engrams[i];
     const isLastItem = i === engrams.length - 1;
-    const connector = isLastItem ? "└─" : "├─";
-    const childPrefix = isLastItem ? "  " : "│ ";
+    const connector = isLastItem ? ICON_TREE_END : ICON_TREE_MID;
+    const childPrefix = isLastItem ? "  " : ICON_TREE_PIPE + " ";
 
     const statusDot = getStatusDot(eg);
 
@@ -481,7 +491,7 @@ export const list = command({
     if (globalEngrams.length > 0 && !localOnly) {
       raw(
         colors.bold("Global engrams") + "\n" +
-        "│ " +
+        ICON_INDENT +
           colors.dim(`${totalGlobal} engram${totalGlobal === 1 ? "" : "s"}`) +
           colors.dim(` — ${shortenPath(paths.global)}`),
       );
@@ -503,7 +513,7 @@ export const list = command({
       if (printedSection) raw("");
       raw(
         colors.bold("Local engrams") + "\n" +
-        "│ " +
+        ICON_INDENT +
           colors.dim(`${totalLocal} engram${totalLocal === 1 ? "" : "s"}`) +
           colors.dim(` — ${shortenPath(paths.local!)}`),
       );
@@ -522,8 +532,8 @@ export const list = command({
     
     // Footer/legend
     raw(
-      colors.dim("─".repeat(90) + "\n") +
-      colors.dim("● ready  ◐ lazy  ○ not initialized") + "\n" +
+      colors.dim(ICON_LINE.repeat(90) + "\n") +
+      colors.dim(`${ICON_READY} ready  ${ICON_PARTIAL} lazy  ${ICON_INACTIVE} not initialized`) + "\n" +
       colors.dim("P = permanently visible  M = manual only  XD/XA = disclosure/activation triggers")
     );
   },

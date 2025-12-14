@@ -12,6 +12,7 @@ import {
 } from "../index-ref";
 import { CONTENT_DIR, MANIFEST_FILENAME, ENGRAMS_DIR } from "../../constants";
 import { cloneWithSparseCheckout } from "../cache";
+import { ICON_READY, ICON_INACTIVE } from "../icons";
 
 interface WrapConfig {
   remote: string;
@@ -248,8 +249,8 @@ export const showIndex = command({
       const submodulePath = `${ENGRAMS_DIR}/${name}`;
       const initialized = isSubmoduleInitialized(projectRoot, submodulePath);
       const status = initialized
-        ? colors.green("●")
-        : colors.dim("○");
+        ? colors.green(ICON_READY)
+        : colors.dim(ICON_INACTIVE);
 
       const lines: string[] = [];
       lines.push(`${status} ${colors.cyan(name)}: ${entry.name}`);
@@ -294,6 +295,6 @@ export const showIndex = command({
       
       outputLines.push(lines.join("\n"));
     }
-    raw(outputLines.join("\n") + colors.dim("\n\n● initialized  ○ not initialized"));
+    raw(outputLines.join("\n") + colors.dim(`\n\n${ICON_READY} initialized  ${ICON_INACTIVE} not initialized`));
   },
 });
