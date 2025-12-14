@@ -3,10 +3,6 @@ valid:
   # Single calls are fine
   - |
     info("Hello world");
-  # Different logger types in sequence are fine
-  - |
-    info("Info message");
-    warn("Warning message");
   # Separated by other statements
   - |
     info("First");
@@ -45,3 +41,11 @@ invalid:
     info("One");
     info("Two");
     info("Three");
+  # Different logger types in sequence (now caught)
+  - |
+    info("Info message");
+    warn("Warning message");
+  # fail followed by info
+  - |
+    fail("Error occurred");
+    info("Additional context");

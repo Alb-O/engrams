@@ -1,0 +1,57 @@
+id: no-logger-in-loop
+valid:
+  # Logger outside loop is fine
+  - |
+    info("Starting process");
+    for (const item of items) {
+      process(item);
+    }
+    info("Done");
+  # Collecting and logging after loop
+  - |
+    const lines = items.map(item => `  ${item.name}`);
+    info(lines.join("\n"));
+  # Inline map in template literal
+  - |
+    info(`Found ${items.length} items:\n${items.map(i => `  ${i.name}`).join("\n")}`);
+  # forEach with non-logger callback
+  - |
+    items.forEach(item => process(item));
+  # While loop without logger
+  - |
+    while (condition) {
+      doWork();
+    }
+invalid:
+  # Logger in for...of loop
+  - |
+    for (const item of items) {
+      info(`  ${item.name}`);
+    }
+  # Logger in for...in loop
+  - |
+    for (const key in obj) {
+      info(`  ${key}: ${obj[key]}`);
+    }
+  # Logger in while loop
+  - |
+    while (hasMore()) {
+      const item = getNext();
+      info(`Processing: ${item}`);
+    }
+  # Logger in classic for loop
+  - |
+    for (let i = 0; i < items.length; i++) {
+      info(`  ${items[i]}`);
+    }
+  # warn in loop
+  - |
+    for (const item of items) {
+      warn(`Issue with ${item}`);
+    }
+  # Multiple loggers in loop
+  - |
+    for (const item of items) {
+      info(`Processing ${item}`);
+      success(`Done: ${item}`);
+    }
