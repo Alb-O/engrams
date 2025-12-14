@@ -1,0 +1,26 @@
+id: prefer-bun-spawn
+snapshots:
+  const result = spawnSync('git', ['status']):
+    labels:
+    - source: spawnSync('git', ['status'])
+      style: primary
+      start: 15
+      end: 43
+  'const result = spawnSync(''git'', [''status''], { encoding: ''utf-8'' })':
+    labels:
+    - source: 'spawnSync(''git'', [''status''], { encoding: ''utf-8'' })'
+      style: primary
+      start: 15
+      end: 66
+  'execSync(''git status'', { cwd: projectRoot })':
+    labels:
+    - source: 'execSync(''git status'', { cwd: projectRoot })'
+      style: primary
+      start: 0
+      end: 44
+  execSync('npm install'):
+    labels:
+    - source: execSync('npm install')
+      style: primary
+      start: 0
+      end: 23

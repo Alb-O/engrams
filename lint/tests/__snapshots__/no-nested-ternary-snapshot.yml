@@ -1,0 +1,32 @@
+id: no-nested-ternary
+snapshots:
+  'const result = condition1 ? value1 : condition2 ? value2 : value3':
+    labels:
+    - source: 'condition1 ? value1 : condition2 ? value2 : value3'
+      style: primary
+      start: 15
+      end: 65
+    - source: 'condition2 ? value2 : value3'
+      style: secondary
+      start: 37
+      end: 65
+  'const x = a ? b : c ? d : e':
+    labels:
+    - source: 'a ? b : c ? d : e'
+      style: primary
+      start: 10
+      end: 27
+    - source: 'c ? d : e'
+      style: secondary
+      start: 18
+      end: 27
+  'const x = a ? b ? c : d : e':
+    labels:
+    - source: 'a ? b ? c : d : e'
+      style: primary
+      start: 10
+      end: 27
+    - source: 'b ? c : d'
+      style: secondary
+      start: 14
+      end: 23

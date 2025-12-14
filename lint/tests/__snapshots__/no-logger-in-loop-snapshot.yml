@@ -1,0 +1,102 @@
+id: no-logger-in-loop
+snapshots:
+  ? |
+    for (const item of items) {
+      info(`  ${item.name}`);
+    }
+  : labels:
+    - source: info(`  ${item.name}`)
+      style: primary
+      start: 30
+      end: 52
+    - source: |-
+        for (const item of items) {
+          info(`  ${item.name}`);
+        }
+      style: secondary
+      start: 0
+      end: 55
+  ? |
+    for (const item of items) {
+      info(`Processing ${item}`);
+      success(`Done: ${item}`);
+    }
+  : labels:
+    - source: info(`Processing ${item}`)
+      style: primary
+      start: 30
+      end: 56
+    - source: |-
+        for (const item of items) {
+          info(`Processing ${item}`);
+          success(`Done: ${item}`);
+        }
+      style: secondary
+      start: 0
+      end: 87
+  ? |
+    for (const item of items) {
+      warn(`Issue with ${item}`);
+    }
+  : labels:
+    - source: warn(`Issue with ${item}`)
+      style: primary
+      start: 30
+      end: 56
+    - source: |-
+        for (const item of items) {
+          warn(`Issue with ${item}`);
+        }
+      style: secondary
+      start: 0
+      end: 59
+  ? |
+    for (const key in obj) {
+      info(`  ${key}: ${obj[key]}`);
+    }
+  : labels:
+    - source: 'info(`  ${key}: ${obj[key]}`)'
+      style: primary
+      start: 27
+      end: 56
+    - source: |-
+        for (const key in obj) {
+          info(`  ${key}: ${obj[key]}`);
+        }
+      style: secondary
+      start: 0
+      end: 59
+  ? |
+    for (let i = 0; i < items.length; i++) {
+      info(`  ${items[i]}`);
+    }
+  : labels:
+    - source: info(`  ${items[i]}`)
+      style: primary
+      start: 43
+      end: 64
+    - source: |-
+        for (let i = 0; i < items.length; i++) {
+          info(`  ${items[i]}`);
+        }
+      style: secondary
+      start: 0
+      end: 67
+  ? |
+    while (hasMore()) {
+      const item = getNext();
+      info(`Processing: ${item}`);
+    }
+  : labels:
+    - source: 'info(`Processing: ${item}`)'
+      style: primary
+      start: 48
+      end: 75
+    - source: |-
+        while (hasMore()) {
+          const item = getNext();
+          info(`Processing: ${item}`);
+        }
+      style: secondary
+      start: 0
+      end: 78

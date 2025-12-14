@@ -4,6 +4,7 @@ import type {
   TriggerConfig,
   CompiledTriggerRegexes,
 } from "./types";
+import { warn } from "../logging";
 
 const WILDCARD_PATTERN = /[*?\[]/;
 
@@ -11,7 +12,15 @@ function escapeRegex(input: string): string {
   return input.replace(/[|\\{}()[\]^$+?.]/g, "\\$&");
 }
 
+const MAX_BRACE_EXPANSIONS = 100;
+
 export function expandBraces(pattern: string): string[] {
+  return expandBracesLimited(pattern, MAX_BRACE_EXPANSIONS);
+}
+
+function expandBracesLimited(pattern: string, remaining: number): string[] {
+  if (remaining <= 0) return [pattern];
+
   const start = pattern.indexOf("{");
   if (start === -1) return [pattern];
 
@@ -52,12 +61,16 @@ export function expandBraces(pattern: string): string[] {
   }
   options.push(current);
 
-  return options.flatMap((option) =>
-    expandBraces(`${before}${option}${after}`),
-  );
+  const results: string[] = [];
+  for (const option of options) {
+    if (results.length >= remaining) break;
+    const expanded = expandBracesLimited(`${before}${option}${after}`, remaining - results.length);
+    results.push(...expanded.slice(0, remaining - results.length));
+  }
+  return results;
 }
 
-function globFragmentToRegex(pattern: string): string {
+function globFragmentToRegex(pattern: string): string | null {
   let regex = "";
 
   for (let i = 0; i < pattern.length; i++) {
@@ -91,11 +104,8 @@ function globFragmentToRegex(pattern: string): string {
         i = j;
         continue;
       }
-    }
-
-    if (/\s/.test(char)) {
-      regex += "\\s+";
-      continue;
+      warn(`Malformed trigger pattern: unclosed '[' in "${pattern}"`);
+      return null;
     }
 
     regex += escapeRegex(char);
@@ -104,8 +114,10 @@ function globFragmentToRegex(pattern: string): string {
   return regex;
 }
 
-function globToRegExp(pattern: string, enforceWordBoundary: boolean): RegExp {
+function globToRegExp(pattern: string, enforceWordBoundary: boolean): RegExp | null {
   const source = globFragmentToRegex(pattern);
+  if (source === null) return null;
+
   const bounded = enforceWordBoundary
     ? `(?:^|[^A-Za-z0-9])(?:${source})(?:[^A-Za-z0-9]|$)`
     : source;
@@ -125,7 +137,12 @@ export function compileContextTrigger(pattern: string): RegExp[] {
   const hasWildcard = WILDCARD_PATTERN.test(trimmed);
   const expansions = expandBraces(trimmed);
 
-  return expansions.map((expanded) => globToRegExp(expanded, !hasWildcard));
+  const regexes: RegExp[] = [];
+  for (const expanded of expansions) {
+    const regex = globToRegExp(expanded, !hasWildcard);
+    if (regex !== null) regexes.push(regex);
+  }
+  return regexes;
 }
 
 /** Check if a trigger array contains a bare star wildcard */

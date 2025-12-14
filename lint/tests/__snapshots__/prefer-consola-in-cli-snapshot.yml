@@ -1,0 +1,37 @@
+id: prefer-consola-in-cli
+snapshots:
+  ? |
+    console.error(pc.red("Error"));
+  : labels:
+    - source: console.error(pc.red("Error"))
+      style: primary
+      start: 0
+      end: 30
+  ? |
+    console.info("Info");
+  : labels:
+    - source: console.info("Info")
+      style: primary
+      start: 0
+      end: 20
+  ? |
+    console.log("Hello");
+  : labels:
+    - source: console.log("Hello")
+      style: primary
+      start: 0
+      end: 20
+  ? |
+    console.log(pc.green("Success"));
+  : labels:
+    - source: console.log(pc.green("Success"))
+      style: primary
+      start: 0
+      end: 32
+  ? |
+    console.warn("Warning");
+  : labels:
+    - source: console.warn("Warning")
+      style: primary
+      start: 0
+      end: 23

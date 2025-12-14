@@ -5,6 +5,7 @@ import ignore, { type Ignore } from "ignore";
 import type { FileTreeOptions } from "../core/types";
 import { extractOneliner } from "./comment-parser";
 import { ONELINER_PATTERN, ONELINER_FILENAMES } from "../constants";
+import { debug } from "../logging";
 
 interface FileEntry {
   path: string;
@@ -44,6 +45,9 @@ async function loadIgnoreFile(filePath: string): Promise<Ignore | null> {
   return ignore().add(content);
 }
 
+const MAX_ONELINER_FILE_SIZE = 1024; // 1KB for .oneliner files
+const MAX_FILE_SCAN_SIZE = 4096; // 4KB for extracting inline oneliners
+
 /**
  * Reads a .oneliner or .oneliner.txt file from a directory.
  * Returns the raw content as description, or null if not found.
@@ -52,6 +56,7 @@ async function getDirOneliner(dirPath: string): Promise<string | null> {
   for (const filename of ONELINER_FILENAMES) {
     const file = Bun.file(join(dirPath, filename));
     if (!(await file.exists())) continue;
+    if (file.size > MAX_ONELINER_FILE_SIZE) continue;
 
     const content = await file.text();
     const trimmed = content.trim();
@@ -71,6 +76,7 @@ async function getDirOneliner(dirPath: string): Promise<string | null> {
 async function getFileInlineComment(filePath: string): Promise<string | null> {
   const file = Bun.file(filePath);
   if (!(await file.exists())) return null;
+  if (file.size > MAX_FILE_SCAN_SIZE) return null;
 
   const content = await file.text();
   const oneliner = extractOneliner(content);
@@ -97,7 +103,20 @@ async function safeReaddir(path: string): Promise<Dirent[]> {
  * Safely stat a path, returning null if it doesn't exist.
  */
 async function safeStat(path: string) {
-  return fs.stat(path).catch(() => null);
+  return fs.stat(path).catch((err) => {
+    debug(`safeStat failed for ${path}: ${err.code ?? err.message}`);
+    return null;
+  });
+}
+
+/**
+ * Safely get realpath, returning original path on failure.
+ */
+async function safeRealpath(path: string): Promise<string> {
+  return fs.realpath(path).catch((err) => {
+    debug(`safeRealpath failed for ${path}: ${err.code ?? err.message}`);
+    return path;
+  });
 }
 
 /**
@@ -120,6 +139,8 @@ export async function generateFileTree(
 
   // Load .ignore file from root directory
   const ig = await loadIgnoreFile(join(directory, ignoreFile));
+  const visited = new Set<string>();
+  const rootReal = await safeRealpath(directory);
 
   const shouldExclude = (name: string): boolean => {
     return exclude.some((pattern) => pattern.test(name));
@@ -130,6 +151,11 @@ export async function generateFileTree(
     depth: number,
   ): Promise<FileEntry[]> => {
     if (depth > maxDepth) return [];
+
+    const realDir = await safeRealpath(dir);
+    if (visited.has(realDir)) return [];
+    if (!realDir.startsWith(rootReal)) return [];
+    visited.add(realDir);
 
     const entries = await safeReaddir(dir);
     if (entries.length === 0) return [];

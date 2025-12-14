@@ -1,0 +1,26 @@
+id: no-any-type
+snapshots:
+  'const items: any[] = []':
+    labels:
+    - source: any
+      style: primary
+      start: 13
+      end: 16
+  'const x: any = 1':
+    labels:
+    - source: any
+      style: primary
+      start: 9
+      end: 12
+  'function foo(x: any): any { return x }':
+    labels:
+    - source: any
+      style: primary
+      start: 16
+      end: 19
+  'type Foo = { data: any }':
+    labels:
+    - source: any
+      style: primary
+      start: 19
+      end: 22

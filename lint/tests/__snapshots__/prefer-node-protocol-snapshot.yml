@@ -1,0 +1,44 @@
+id: prefer-node-protocol
+snapshots:
+  import os from 'os':
+    labels:
+    - source: import os from 'os'
+      style: primary
+      start: 0
+      end: 19
+  import path from 'path':
+    labels:
+    - source: import path from 'path'
+      style: primary
+      start: 0
+      end: 23
+  import { EventEmitter } from 'events':
+    labels:
+    - source: import { EventEmitter } from 'events'
+      style: primary
+      start: 0
+      end: 37
+  import { createHash } from 'crypto':
+    labels:
+    - source: import { createHash } from 'crypto'
+      style: primary
+      start: 0
+      end: 35
+  import { readFile } from 'fs':
+    labels:
+    - source: import { readFile } from 'fs'
+      style: primary
+      start: 0
+      end: 29
+  import { readFile } from 'fs/promises':
+    labels:
+    - source: import { readFile } from 'fs/promises'
+      style: primary
+      start: 0
+      end: 38
+  import { spawn } from 'child_process':
+    labels:
+    - source: import { spawn } from 'child_process'
+      style: primary
+      start: 0
+      end: 37

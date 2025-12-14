@@ -1,0 +1,32 @@
+id: no-console-in-library
+snapshots:
+  console.debug('debug message'):
+    labels:
+    - source: console.debug('debug message')
+      style: primary
+      start: 0
+      end: 30
+  console.error('error occurred'):
+    labels:
+    - source: console.error('error occurred')
+      style: primary
+      start: 0
+      end: 31
+  console.info('info message'):
+    labels:
+    - source: console.info('info message')
+      style: primary
+      start: 0
+      end: 28
+  console.log('debug info'):
+    labels:
+    - source: console.log('debug info')
+      style: primary
+      start: 0
+      end: 25
+  console.warn('warning message'):
+    labels:
+    - source: console.warn('warning message')
+      style: primary
+      start: 0
+      end: 31

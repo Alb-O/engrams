@@ -1,0 +1,107 @@
+id: prefer-error-cause
+snapshots:
+  ? |
+    try { risky() } catch (e) {
+      throw new Error('Failed');
+    }
+  : labels:
+    - source: |-
+        catch (e) {
+          throw new Error('Failed');
+        }
+      style: primary
+      start: 16
+      end: 58
+    - source: Error
+      style: secondary
+      start: 40
+      end: 45
+    - source: ('Failed')
+      style: secondary
+      start: 45
+      end: 55
+    - source: new Error('Failed')
+      style: secondary
+      start: 36
+      end: 55
+    - source: throw new Error('Failed');
+      style: secondary
+      start: 30
+      end: 56
+    - source: |-
+        {
+          throw new Error('Failed');
+        }
+      style: secondary
+      start: 26
+      end: 58
+  ? |
+    try { risky() } catch (e) {
+      throw new Error('Failed: ' + e.message);
+    }
+  : labels:
+    - source: |-
+        catch (e) {
+          throw new Error('Failed: ' + e.message);
+        }
+      style: primary
+      start: 16
+      end: 72
+    - source: Error
+      style: secondary
+      start: 40
+      end: 45
+    - source: '(''Failed: '' + e.message)'
+      style: secondary
+      start: 45
+      end: 69
+    - source: 'new Error(''Failed: '' + e.message)'
+      style: secondary
+      start: 36
+      end: 69
+    - source: 'throw new Error(''Failed: '' + e.message);'
+      style: secondary
+      start: 30
+      end: 70
+    - source: |-
+        {
+          throw new Error('Failed: ' + e.message);
+        }
+      style: secondary
+      start: 26
+      end: 72
+  ? |
+    try { risky() } catch (error) {
+      throw new Error('Something went wrong');
+    }
+  : labels:
+    - source: |-
+        catch (error) {
+          throw new Error('Something went wrong');
+        }
+      style: primary
+      start: 16
+      end: 76
+    - source: Error
+      style: secondary
+      start: 44
+      end: 49
+    - source: ('Something went wrong')
+      style: secondary
+      start: 49
+      end: 73
+    - source: new Error('Something went wrong')
+      style: secondary
+      start: 40
+      end: 73
+    - source: throw new Error('Something went wrong');
+      style: secondary
+      start: 34
+      end: 74
+    - source: |-
+        {
+          throw new Error('Something went wrong');
+        }
+      style: secondary
+      start: 30
+      end: 76

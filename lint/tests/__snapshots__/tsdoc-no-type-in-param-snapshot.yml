@@ -1,0 +1,28 @@
+id: tsdoc-no-type-in-param
+snapshots:
+  ? |
+    /**
+     * @param {number} count The count
+     */
+    function count(count: number) {}
+  : labels:
+    - source: |-
+        /**
+         * @param {number} count The count
+         */
+      style: primary
+      start: 0
+      end: 42
+  ? |
+    /**
+     * @param {string} name - The name
+     */
+    function test(name: string) {}
+  : labels:
+    - source: |-
+        /**
+         * @param {string} name - The name
+         */
+      style: primary
+      start: 0
+      end: 42

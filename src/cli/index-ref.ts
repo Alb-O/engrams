@@ -87,7 +87,12 @@ function gitExec(args: string[], cwd: string, input?: string): string {
 export function readIndex(repoPath: string): EngramIndex | null {
   const content = git(["cat-file", "-p", INDEX_REF], repoPath);
   if (!content) return null;
-  return JSON.parse(content) as EngramIndex;
+  try {
+    return JSON.parse(content) as EngramIndex;
+  } catch {
+    warn(`Malformed engrams index at ${INDEX_REF}; ignoring`);
+    return null;
+  }
 }
 
 /**

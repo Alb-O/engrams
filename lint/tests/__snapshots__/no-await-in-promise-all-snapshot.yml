@@ -1,0 +1,25 @@
+id: no-await-in-promise-all
+snapshots:
+  ? |
+    const [foo, bar] = await Promise.all([
+      await getFoo(),
+      getBar(),
+    ])
+  : fixed: |
+      const [foo, bar] = await Promise.all([
+        getFoo(),
+        getBar(),
+      ])
+    labels:
+    - source: await getFoo()
+      style: primary
+      start: 41
+      end: 55
+    - source: |-
+        Promise.all([
+          await getFoo(),
+          getBar(),
+        ])
+      style: secondary
+      start: 25
+      end: 71

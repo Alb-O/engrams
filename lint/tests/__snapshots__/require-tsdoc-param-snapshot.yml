@@ -1,0 +1,28 @@
+id: require-tsdoc-param
+snapshots:
+  ? |
+    /**
+     * @arg foo - Description
+     */
+    function test(foo: string) {}
+  : labels:
+    - source: |-
+        /**
+         * @arg foo - Description
+         */
+      style: primary
+      start: 0
+      end: 33
+  ? |
+    /**
+     * @argument foo - Description
+     */
+    function test(foo: string) {}
+  : labels:
+    - source: |-
+        /**
+         * @argument foo - Description
+         */
+      style: primary
+      start: 0
+      end: 38

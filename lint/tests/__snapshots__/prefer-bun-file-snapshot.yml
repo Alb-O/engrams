@@ -1,0 +1,26 @@
+id: prefer-bun-file
+snapshots:
+  const content = await fs.promises.readFile(path, 'utf-8'):
+    labels:
+    - source: fs.promises.readFile(path, 'utf-8')
+      style: primary
+      start: 22
+      end: 57
+  const content = await fs.readFile(path, 'utf8'):
+    labels:
+    - source: fs.readFile(path, 'utf8')
+      style: primary
+      start: 22
+      end: 47
+  const data = await fsPromises.readFile(path, 'utf8'):
+    labels:
+    - source: fsPromises.readFile(path, 'utf8')
+      style: primary
+      start: 19
+      end: 52
+  fs.readFile(path, (err, data) => {}):
+    labels:
+    - source: fs.readFile(path, (err, data) => {})
+      style: primary
+      start: 0
+      end: 36

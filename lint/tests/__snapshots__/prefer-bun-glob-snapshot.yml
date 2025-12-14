@@ -1,0 +1,38 @@
+id: prefer-bun-glob
+snapshots:
+  import fg from 'fast-glob':
+    labels:
+    - source: import fg from 'fast-glob'
+      style: primary
+      start: 0
+      end: 26
+  import glob from 'glob':
+    labels:
+    - source: import glob from 'glob'
+      style: primary
+      start: 0
+      end: 23
+  import globby from 'globby':
+    labels:
+    - source: import globby from 'globby'
+      style: primary
+      start: 0
+      end: 27
+  import { glob } from 'fast-glob':
+    labels:
+    - source: import { glob } from 'fast-glob'
+      style: primary
+      start: 0
+      end: 32
+  import { glob } from 'glob':
+    labels:
+    - source: import { glob } from 'glob'
+      style: primary
+      start: 0
+      end: 27
+  import { globby } from 'globby':
+    labels:
+    - source: import { globby } from 'globby'
+      style: primary
+      start: 0
+      end: 31

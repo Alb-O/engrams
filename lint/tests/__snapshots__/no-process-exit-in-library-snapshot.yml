@@ -1,0 +1,26 @@
+id: no-process-exit-in-library
+snapshots:
+  if (error) process.exit(1):
+    labels:
+    - source: process.exit(1)
+      style: primary
+      start: 11
+      end: 26
+  process.exit():
+    labels:
+    - source: process.exit()
+      style: primary
+      start: 0
+      end: 14
+  process.exit(0):
+    labels:
+    - source: process.exit(0)
+      style: primary
+      start: 0
+      end: 15
+  process.exit(1):
+    labels:
+    - source: process.exit(1)
+      style: primary
+      start: 0
+      end: 15

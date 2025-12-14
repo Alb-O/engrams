@@ -2,7 +2,7 @@ import os from "node:os";
 import { promises as fs, existsSync, Dirent } from "node:fs";
 import { dirname, join, sep } from "node:path";
 import type { Engram } from "./types";
-import { warn } from "../logging";
+import { warn, debug } from "../logging";
 import { MANIFEST_FILENAME, parseEngram, generateToolName } from "./manifest";
 import { INDEX_REF, ENGRAMS_DIR } from "../constants";
 
@@ -23,14 +23,20 @@ function git(args: string[], cwd: string): string | null {
  * Safely stat a path, returning null if it doesn't exist or fails.
  */
 async function safeStat(path: string) {
-  return fs.stat(path).catch(() => null);
+  return fs.stat(path).catch((err) => {
+    debug(`safeStat failed for ${path}: ${err.code ?? err.message}`);
+    return null;
+  });
 }
 
 /**
  * Safely get realpath, returning original path on failure.
  */
 async function safeRealpath(path: string): Promise<string> {
-  return fs.realpath(path).catch(() => path);
+  return fs.realpath(path).catch((err) => {
+    debug(`safeRealpath failed for ${path}: ${err.code ?? err.message}`);
+    return path;
+  });
 }
 
 /**
@@ -139,8 +145,10 @@ async function establishEngramHierarchy(engrams: Engram[]): Promise<void> {
   for (const engram of sortedByDepth) {
     const realPath = realPaths.get(engram) || engram.directory;
     let currentDir = dirname(realPath);
+    const maxIterations = realPath.split(sep).length;
+    let iterations = 0;
 
-    while (currentDir && currentDir !== dirname(currentDir)) {
+    while (currentDir && currentDir !== dirname(currentDir) && iterations++ < maxIterations) {
       const parentEngram = dirToEngram.get(currentDir);
       if (parentEngram) {
         engram.parentToolName = parentEngram.toolName;
@@ -294,7 +302,12 @@ type EngramIndex = Record<string, IndexEntry>;
 export function readIndexRef(repoPath: string): EngramIndex | null {
   const content = git(["cat-file", "-p", INDEX_REF], repoPath);
   if (!content) return null;
-  return JSON.parse(content) as EngramIndex;
+  try {
+    return JSON.parse(content) as EngramIndex;
+  } catch {
+    warn(`Malformed engrams index at ${INDEX_REF}; ignoring`);
+    return null;
+  }
 }
 
 /**

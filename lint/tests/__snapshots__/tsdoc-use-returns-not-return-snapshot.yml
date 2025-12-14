@@ -1,0 +1,23 @@
+id: tsdoc-use-returns-not-return
+snapshots:
+  ? |
+    /**
+     * @return The parsed value
+     */
+    function parse(): string {}
+  : labels:
+    - source: |-
+        /**
+         * @return The parsed value
+         */
+      style: primary
+      start: 0
+      end: 35
+  ? |
+    /** @return Nothing */
+    function doWork(): void {}
+  : labels:
+    - source: /** @return Nothing */
+      style: primary
+      start: 0
+      end: 22

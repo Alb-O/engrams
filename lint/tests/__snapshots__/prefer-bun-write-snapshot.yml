@@ -1,0 +1,26 @@
+id: prefer-bun-write
+snapshots:
+  await fs.promises.writeFile(path, content):
+    labels:
+    - source: fs.promises.writeFile(path, content)
+      style: primary
+      start: 6
+      end: 42
+  await fs.writeFile(path, content):
+    labels:
+    - source: fs.writeFile(path, content)
+      style: primary
+      start: 6
+      end: 33
+  await fsPromises.writeFile(path, data):
+    labels:
+    - source: fsPromises.writeFile(path, data)
+      style: primary
+      start: 6
+      end: 38
+  fs.writeFile(path, content, (err) => {}):
+    labels:
+    - source: fs.writeFile(path, content, (err) => {})
+      style: primary
+      start: 0
+      end: 40

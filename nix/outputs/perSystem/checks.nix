@@ -36,7 +36,7 @@
 
       ast-grep-test = pkgs.runCommand "ast-grep-test" { } ''
         cd ${rootSrc}
-        ${pkgs.ast-grep}/bin/ast-grep test --skip-snapshot-tests
+        ${pkgs.ast-grep}/bin/ast-grep test
         touch $out
       '';
 

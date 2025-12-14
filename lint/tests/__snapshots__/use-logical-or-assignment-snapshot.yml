@@ -1,0 +1,16 @@
+id: use-logical-or-assignment
+snapshots:
+  a = a || b:
+    fixed: a ||= b
+    labels:
+    - source: a = a || b
+      style: primary
+      start: 0
+      end: 10
+  obj.prop = obj.prop || defaultValue:
+    fixed: obj.prop ||= defaultValue
+    labels:
+    - source: obj.prop = obj.prop || defaultValue
+      style: primary
+      start: 0
+      end: 35

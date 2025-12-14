@@ -1,0 +1,28 @@
+id: tsdoc-no-type-in-returns
+snapshots:
+  ? |
+    /**
+     * @return {Promise<Data>} The result
+     */
+    async function fetch(): Promise<Data> {}
+  : labels:
+    - source: |-
+        /**
+         * @return {Promise<Data>} The result
+         */
+      style: primary
+      start: 0
+      end: 45
+  ? |
+    /**
+     * @returns {string} The parsed value
+     */
+    function parse(): string {}
+  : labels:
+    - source: |-
+        /**
+         * @returns {string} The parsed value
+         */
+      style: primary
+      start: 0
+      end: 45

@@ -1,0 +1,16 @@
+id: use-logical-and-assignment
+snapshots:
+  a = a && b:
+    fixed: a &&= b
+    labels:
+    - source: a = a && b
+      style: primary
+      start: 0
+      end: 10
+  obj.prop = obj.prop && newValue:
+    fixed: obj.prop &&= newValue
+    labels:
+    - source: obj.prop = obj.prop && newValue
+      style: primary
+      start: 0
+      end: 31
