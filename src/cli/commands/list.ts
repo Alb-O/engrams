@@ -199,13 +199,14 @@ function stripAnsi(str: string): string {
   return str.replace(/\x1b\[[0-9;]*m/g, "");
 }
 
-function printEngramTree(
+function buildEngramTreeLines(
   engrams: EngramInfo[],
   prefix = "",
   isLast = true,
   lineWidth = 90,
   triggerCol = 80,
-): void {
+): string[] {
+  const outputLines: string[] = [];
   for (let i = 0; i < engrams.length; i++) {
     const eg = engrams[i];
     const isLastItem = i === engrams.length - 1;
@@ -223,7 +224,6 @@ function printEngramTree(
       : colors.bold(eg.displayName);
 
     const triggerDisplay = getTriggerSummary(eg.disclosureTriggers, eg.activationTriggers);
-    const triggerLen = stripAnsi(triggerDisplay).length;
 
     let warning = "";
     if (!eg.hasToml && !eg.fromIndex) {
@@ -255,12 +255,24 @@ function printEngramTree(
     const padding = Math.max(1, triggerCol - leftSideLen);
     const line = `${leftSide}${" ".repeat(padding)}${triggerDisplay}`;
 
-    raw(line);
+    outputLines.push(line);
 
     if (eg.children.length > 0) {
-      printEngramTree(eg.children, prefix + childPrefix, isLastItem, lineWidth, triggerCol);
+      outputLines.push(...buildEngramTreeLines(eg.children, prefix + childPrefix, isLastItem, lineWidth, triggerCol));
     }
   }
+  return outputLines;
+}
+
+function printEngramTree(
+  engrams: EngramInfo[],
+  prefix = "",
+  isLast = true,
+  lineWidth = 90,
+  triggerCol = 80,
+): void {
+  const lines = buildEngramTreeLines(engrams, prefix, isLast, lineWidth, triggerCol);
+  raw(lines.join("\n"));
 }
 
 function countEngrams(engrams: EngramInfo[]): number {
@@ -385,11 +397,12 @@ export const list = command({
       );
       if (flat) {
         const flatList = flatten(globalEngrams);
-        for (const eg of flatList) {
+        const flatLines = flatList.map(eg => {
           const statusDot = getStatusDot(eg);
           const indent = "  ".repeat(eg.depth);
-          raw(`${indent}${statusDot} ${eg.name}`);
-        }
+          return `${indent}${statusDot} ${eg.name}`;
+        });
+        raw(flatLines.join("\n"));
       } else {
         printEngramTree(globalEngrams);
       }
@@ -405,11 +418,12 @@ export const list = command({
       );
       if (flat) {
         const flatList = flatten(localEngrams);
-        for (const eg of flatList) {
+        const flatLines = flatList.map(eg => {
           const statusDot = getStatusDot(eg);
           const indent = "  ".repeat(eg.depth);
-          raw(`${indent}${statusDot} ${eg.name}`);
-        }
+          return `${indent}${statusDot} ${eg.name}`;
+        });
+        raw(flatLines.join("\n"));
       } else {
         printEngramTree(localEngrams);
       }

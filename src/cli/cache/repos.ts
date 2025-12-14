@@ -80,7 +80,9 @@ async function gitNetwork(
 
   for (let attempt = 0; attempt <= retries; attempt++) {
     if (attempt > 0) {
+      // ast-grep-ignore: no-logger-in-loop
       info(`  Retry ${attempt}/${retries}...`);
+      // reason: real-time retry progress feedback during network operations
     }
 
     const proc = Bun.spawn(["git", ...args], {

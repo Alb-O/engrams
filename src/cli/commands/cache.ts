@@ -29,15 +29,18 @@ const list = command({
       return;
     }
 
-    raw("Cached repositories:\n");
-
     let totalSize = 0;
+    const repoLines: string[] = [];
     for (const repo of cached) {
       totalSize += repo.size;
-      raw(`  ${repo.url}\n    ${formatBytes(repo.size)}`);
+      repoLines.push(`  ${repo.url}\n    ${formatBytes(repo.size)}`);
     }
 
-    raw(`\nTotal: ${cached.length} repos, ${formatBytes(totalSize)}\nCache directory: ${getCacheDir()}`);
+    raw(
+      "Cached repositories:\n\n" +
+        repoLines.join("\n") +
+        `\n\nTotal: ${cached.length} repos, ${formatBytes(totalSize)}\nCache directory: ${getCacheDir()}`,
+    );
   },
 });
 
@@ -100,16 +103,21 @@ const update = command({
 
     info(`Updating ${cached.length} cached repositories...`);
 
+    const updated: string[] = [];
+    const failed: string[] = [];
     for (const repo of cached) {
       try {
-        info(`  Fetching ${repo.url}...`);
         await ensureCached(repo.url, { quiet: true });
+        updated.push(repo.url);
       } catch (error) {
-        warn(`  Failed to update ${repo.url}`);
+        failed.push(repo.url);
       }
     }
 
-    success(`Updated ${cached.length} repos`);
+    if (failed.length > 0) {
+      warn(`Failed to update:\n${failed.map(u => `  ${u}`).join("\n")}`);
+    }
+    success(`Updated ${updated.length}/${cached.length} repos`);
   },
 });
 

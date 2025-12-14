@@ -243,6 +243,7 @@ export function buildIndexFromEngrams(repoPath: string): EngramIndex {
   }
 
   const entries = readdirSync(engramsDir, { withFileTypes: true });
+  const lockWarnings: string[] = [];
 
   for (const entry of entries) {
     if (!entry.isDirectory()) continue;
@@ -265,7 +266,7 @@ export function buildIndexFromEngrams(repoPath: string): EngramIndex {
           if (lockedSha) {
             parsed.wrap.locked = lockedSha;
           } else {
-            warn(
+            lockWarnings.push(
               `Engram '${entry.name}' has lock=true but ${CONTENT_DIR}/ dir has no HEAD.\n` +
                 `  Run 'engram lazy-init ${entry.name}' first to fetch content.`,
             );
@@ -287,6 +288,10 @@ export function buildIndexFromEngrams(repoPath: string): EngramIndex {
       }
       index[entry.name] = parsed;
     }
+  }
+
+  if (lockWarnings.length > 0) {
+    warn(lockWarnings.join("\n"));
   }
 
   return index;

@@ -142,7 +142,8 @@ export const lazyInit = command({
     }
 
     if (all) {
-      let initialized = 0;
+      const initialized: string[] = [];
+      const failed: string[] = [];
       let skipped = 0;
 
       for (const engramName of Object.keys(index)) {
@@ -153,16 +154,22 @@ export const lazyInit = command({
           continue;
         }
 
-        info(`Initializing ${engramName}...`);
         if (initSubmodule(projectRoot, submodulePath)) {
-          success(`  ${engramName}`);
-          initialized++;
+          initialized.push(engramName);
         } else {
-          fail(`  Failed to initialize ${engramName}`);
+          failed.push(engramName);
         }
       }
 
-      success(`Initialized ${initialized} engram(s), ${skipped} already initialized`);
+      if (initialized.length > 0) {
+        success(`Initialized ${initialized.length} engram(s):\n${initialized.map(n => `  ${n}`).join("\n")}`);
+      }
+      if (failed.length > 0) {
+        fail(`Failed to initialize:\n${failed.map(n => `  ${n}`).join("\n")}`);
+      }
+      if (skipped > 0) {
+        info(`${skipped} already initialized`);
+      }
       return;
     }
 
@@ -236,6 +243,7 @@ export const showIndex = command({
 
     raw(colors.bold("Engram Index") + colors.dim(" (refs/engrams/index)\n"));
 
+    const outputLines: string[] = [];
     for (const [name, entry] of Object.entries(index)) {
       const submodulePath = `${ENGRAMS_DIR}/${name}`;
       const initialized = isSubmoduleInitialized(projectRoot, submodulePath);
@@ -284,9 +292,8 @@ export const showIndex = command({
         }
       }
       
-      raw(lines.join("\n"));
+      outputLines.push(lines.join("\n"));
     }
-
-    raw(colors.dim("\n● initialized  ○ not initialized"));
+    raw(outputLines.join("\n") + colors.dim("\n\n● initialized  ○ not initialized"));
   },
 });
