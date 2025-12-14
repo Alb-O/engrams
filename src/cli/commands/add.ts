@@ -57,8 +57,7 @@ export const add = command({
     const parsed = parseRepoUrl(repo);
     if (!parsed) {
       fail(`Invalid repository format: ${repo}`);
-      info(`Formats: owner/repo, domain:owner/repo, or full URL`);
-      info(`Supported domains: ${getSupportedDomains().join(", ")}`);
+      info(`Formats: owner/repo, domain:owner/repo, or full URL\nSupported domains: ${getSupportedDomains().join(", ")}`);
       process.exit(1);
     }
 
@@ -141,12 +140,13 @@ async function handleAdd({ parsed, engramName, projectRoot, targetDir, isGlobal,
   } catch (error) {
     const err = error as Error;
     fail(`Failed to add engram '${engramName}'`);
-    info(`  ${err.message}`);
-    info("");
-    info("Troubleshooting:");
-    info("  - Check if the repository URL is correct and accessible");
-    info("  - Verify you have network connectivity and auth for the remote");
-    info("  - Try --no-cache if cache may be corrupted");
+    info(
+      `  ${err.message}\n\n` +
+      `Troubleshooting:\n` +
+      `  - Check if the repository URL is correct and accessible\n` +
+      `  - Verify you have network connectivity and auth for the remote\n` +
+      `  - Try --no-cache if cache may be corrupted`,
+    );
     if (!isGlobal) {
       info("  - Use --clone to clone directly instead of as a submodule");
     }

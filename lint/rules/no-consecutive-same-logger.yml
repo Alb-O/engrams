@@ -1,0 +1,63 @@
+id: no-consecutive-same-logger
+language: typescript
+severity: warning
+message: "Consecutive logger calls of the same type should use multi-line string."
+note: |
+  Consecutive logger calls of the same severity can be combined using newlines.
+  
+  Instead of:
+    info("Line 1");
+    info("Line 2");
+    info("Line 3");
+  
+  Use:
+    info("Line 1\nLine 2\nLine 3");
+  
+  For empty line breaks, embed \n in the string rather than calling log("").
+files:
+  - src/cli/**/*.ts
+utils:
+  info-stmt:
+    all:
+      - kind: expression_statement
+      - has:
+          pattern: info($$$)
+  warn-stmt:
+    all:
+      - kind: expression_statement
+      - has:
+          pattern: warn($$$)
+  fail-stmt:
+    all:
+      - kind: expression_statement
+      - has:
+          pattern: fail($$$)
+  success-stmt:
+    all:
+      - kind: expression_statement
+      - has:
+          pattern: success($$$)
+  log-stmt:
+    all:
+      - kind: expression_statement
+      - has:
+          pattern: log($$$)
+  error-stmt:
+    all:
+      - kind: expression_statement
+      - has:
+          pattern: error($$$)
+rule:
+  any:
+    - all:
+        - matches: info-stmt
+        - follows:
+            matches: info-stmt
+    - all:
+        - matches: warn-stmt
+        - follows:
+            matches: warn-stmt
+    - all:
+        - matches: log-stmt
+        - follows:
+            matches: log-stmt

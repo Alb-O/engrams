@@ -1,7 +1,7 @@
 import { command, positional, option, multioption, flag, string, optional, array } from "cmd-ts";
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { info, success, warn, fail, log } from "../../logging";
+import { info, success, warn, fail } from "../../logging";
 import { getModulePaths, findProjectRoot, parseRepoUrl, getEngramName } from "../utils";
 import { cloneWithSparseCheckout } from "../cache";
 import {
@@ -307,9 +307,7 @@ export const wrap = command({
     const inferredTriggers = triggers.length > 0 ? triggers : 
       inferredName.toLowerCase().split(/\s+/).filter(w => w.length > 2);
 
-    info(`Generating engram manifest...`);
-    info(`  Name: ${inferredName}`);
-    info(`  Description: ${inferredDescription}`);
+    info(`Generating engram manifest...\n  Name: ${inferredName}\n  Description: ${inferredDescription}`);
     if (isRemote) {
       info(`  Remote: ${parsed!.url}`);
       if (ref) {
@@ -351,17 +349,10 @@ export const wrap = command({
 
     if (lazy) {
       success(`Created lazy engram: ${dirName}`);
-      info(`  ${targetDir}`);
-      log("");
-      info("Run to initialize:");
-      info(`  engram lazy-init ${dirName}`);
+      info(`  ${targetDir}\n\nRun to initialize:\n  engram lazy-init ${dirName}`);
     } else {
       success(`Created engram: ${dirName}`);
-      info(`  ${targetDir}`);
-      log("");
-      info("You can customize the engram by editing:");
-      info(`  ${manifestPath}`);
-      info(`  ${readmePath}`);
+      info(`  ${targetDir}\n\nYou can customize the engram by editing:\n  ${manifestPath}\n  ${readmePath}`);
     }
   },
 });

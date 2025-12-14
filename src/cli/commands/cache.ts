@@ -25,8 +25,7 @@ const list = command({
     const cached = listCachedRepos();
 
     if (cached.length === 0) {
-      info("No cached repositories");
-      info(`Cache directory: ${getCacheDir()}`);
+      info(`No cached repositories\nCache directory: ${getCacheDir()}`);
       return;
     }
 
@@ -40,8 +39,7 @@ const list = command({
     }
 
     log("");
-    info(`Total: ${cached.length} repos, ${formatBytes(totalSize)}`);
-    info(`Cache directory: ${getCacheDir()}`);
+    info(`Total: ${cached.length} repos, ${formatBytes(totalSize)}\nCache directory: ${getCacheDir()}`);
   },
 });
 
