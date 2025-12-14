@@ -185,14 +185,14 @@ function getTriggerSummary(
     (activation?.agentMsg?.length || 0);
 
   if (disclosureCount === 0 && activationCount === 0) {
-    return colors.green("✓");
+    return colors.dim("P");
   }
 
   const parts: string[] = [];
   if (disclosureCount > 0) parts.push(`${disclosureCount}D`);
   if (activationCount > 0) parts.push(`${activationCount}A`);
 
-  return colors.dim(`(${parts.join("/")})`);
+  return colors.dim(parts.join("/"));
 }
 
 function stripAnsi(str: string): string {
@@ -245,15 +245,15 @@ function buildEngramTreeLines(
         eg.description.length > availableForDesc
           ? eg.description.slice(0, availableForDesc - 1) + "…"
           : eg.description;
-      descDisplay = ` ${colors.dim("—")} ${colors.dim(desc)}`;
+      descDisplay = ` ${colors.dim("·")} ${colors.dim(desc)}`;
     }
 
     const leftSide = `${leftPrefix}${descDisplay}${warning}`;
     const leftSideLen = stripAnsi(leftSide).length;
 
-    // Pad to align trigger column
+    // Pad to align trigger column, add separator before trigger
     const padding = Math.max(1, triggerCol - leftSideLen);
-    const line = `${leftSide}${" ".repeat(padding)}${triggerDisplay}`;
+    const line = `${leftSide}${" ".repeat(padding)}${colors.dim(" · ")}${triggerDisplay}`;
 
     outputLines.push(line);
 
@@ -391,9 +391,10 @@ export const list = command({
 
     if (globalEngrams.length > 0 && !localOnly) {
       raw(
-        colors.bold("Global engrams") +
-          colors.dim(` (${shortenPath(paths.global)})`) +
-          colors.dim(` - ${totalGlobal} engram${totalGlobal === 1 ? "" : "s"}`),
+        colors.bold("Global engrams") + "\n" +
+        "│ " +
+          colors.dim(`${totalGlobal} engram${totalGlobal === 1 ? "" : "s"}`) +
+          colors.dim(` — ${shortenPath(paths.global)}`),
       );
       if (flat) {
         const flatList = flatten(globalEngrams);
@@ -412,9 +413,10 @@ export const list = command({
     if (localEngrams.length > 0 && !globalOnly) {
       if (printedSection) raw("");
       raw(
-        colors.bold("Local engrams") +
-          colors.dim(` (${shortenPath(paths.local!)})`) +
-          colors.dim(` - ${totalLocal} engram${totalLocal === 1 ? "" : "s"}`),
+        colors.bold("Local engrams") + "\n" +
+        "│ " +
+          colors.dim(`${totalLocal} engram${totalLocal === 1 ? "" : "s"}`) +
+          colors.dim(` — ${shortenPath(paths.local!)}`),
       );
       if (flat) {
         const flatList = flatten(localEngrams);
@@ -433,8 +435,8 @@ export const list = command({
     raw(
       colors.dim("─".repeat(90) + "\n") +
       colors.dim("● ready  ◐ lazy  ○ not initialized") + "\n" +
-      colors.dim("        ✓ = always visible as tool") + "\n" +
-      colors.dim("(XD/XA) X = no. of disclosure/activation triggers")
+      colors.dim("    P = permanently visible") + "\n" +
+      colors.dim("XD/XA = no. of disclosure/activation triggers")
     );
   },
 });
