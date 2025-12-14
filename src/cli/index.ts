@@ -11,6 +11,7 @@ import { wrap } from "./commands/wrap";
 import { preview } from "./commands/preview";
 import { chain } from "./commands/chain";
 import { error } from "../logging";
+import { VERSION } from "../version";
 
 // cmd-ts calls process.exit(1) for --help, override to exit 0
 const isHelp = process.argv.includes("--help") || process.argv.includes("-h");
@@ -24,7 +25,7 @@ if (isHelp) {
 const app = subcommands({
   name: "engram",
   description: "CLI tool for managing engrams",
-  version: "0.1.0",
+  version: VERSION,
   cmds: {
     init,
     add,

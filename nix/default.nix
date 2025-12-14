@@ -5,9 +5,12 @@
   ...
 }:
 
+let
+  packageJson = builtins.fromJSON (builtins.readFile "${src}/package.json");
+in
 bun2nix.mkDerivation {
   pname = "engrams";
-  version = "1.0.0";
+  version = packageJson.version;
   src = src;
   bunDeps = bun2nix.fetchBunDeps {
     inherit bunNix;
