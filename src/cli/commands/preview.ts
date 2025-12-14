@@ -114,8 +114,7 @@ export const preview = command({
     const found = findEngram(name, projectRoot);
 
     if (!found) {
-      fail(`Engram not found: ${name}`);
-      info("Run 'engram list' to see available engrams");
+      fail(`Engram not found: ${name}\nRun 'engram list' to see available engrams`);
       process.exit(1);
     }
 
@@ -132,8 +131,7 @@ export const preview = command({
 
     if (!isInitialized) {
       const preamble = `# Engram: ${engram.name} [NOT INITIALIZED]\n\nThis engram's submodule has not been cloned yet.\n\n---\n\n`;
-      raw(preamble + engram.content);
-      info(`Run 'engram lazy-init ${name}' to initialize this engram.`);
+      raw(preamble + engram.content + `\n\nRun 'engram lazy-init ${name}' to initialize this engram.`);
       return;
     }
 

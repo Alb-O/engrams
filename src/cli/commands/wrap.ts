@@ -223,8 +223,7 @@ export const wrap = command({
     const isLocalPath = !isRemote && (source.startsWith("/") || source.startsWith("./") || source.startsWith("../"));
 
     if (!isRemote && !isLocalPath) {
-      fail(`Invalid source: ${source}`);
-      info("Provide a repository (owner/repo, URL) or a local path (./path, /absolute/path)");
+      fail(`Invalid source: ${source}\nProvide a repository (owner/repo, URL) or a local path (./path, /absolute/path)`);
       process.exit(1);
     }
 
@@ -232,8 +231,7 @@ export const wrap = command({
     const engramsDir = isGlobal ? paths.global : paths.local;
 
     if (!engramsDir) {
-      fail("Not in a project directory");
-      info("Use --global to install globally, or run from a git repository");
+      fail("Not in a project directory\nUse --global to install globally, or run from a git repository");
       process.exit(1);
     }
 
@@ -245,8 +243,7 @@ export const wrap = command({
     }
 
     if (fs.existsSync(targetDir)) {
-      fail(`Engram already exists at ${targetDir}`);
-      info("Use --force to overwrite");
+      fail(`Engram already exists at ${targetDir}\nUse --force to overwrite`);
       process.exit(1);
     }
 
@@ -293,8 +290,7 @@ export const wrap = command({
     const hasManifest = fs.existsSync(manifestPath);
 
     if (hasManifest) {
-      success(`Wrapped existing engram: ${dirName}`);
-      info(`  ${targetDir}`);
+      success(`Wrapped existing engram: ${dirName}\n  ${targetDir}`);
       return;
     }
 
@@ -348,11 +344,9 @@ export const wrap = command({
     fs.writeFileSync(gitignorePath, gitignoreContent);
 
     if (lazy) {
-      success(`Created lazy engram: ${dirName}`);
-      info(`  ${targetDir}\n\nRun to initialize:\n  engram lazy-init ${dirName}`);
+      success(`Created lazy engram: ${dirName}\n  ${targetDir}\n\nRun to initialize:\n  engram lazy-init ${dirName}`);
     } else {
-      success(`Created engram: ${dirName}`);
-      info(`  ${targetDir}\n\nYou can customize the engram by editing:\n  ${manifestPath}\n  ${readmePath}`);
+      success(`Created engram: ${dirName}\n  ${targetDir}\n\nYou can customize the engram by editing:\n  ${manifestPath}\n  ${readmePath}`);
     }
   },
 });

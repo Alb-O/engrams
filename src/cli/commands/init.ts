@@ -26,8 +26,7 @@ export const init = command({
   },
   handler: async ({ global: isGlobal, force }) => {
     if (!getBundledPluginPath()) {
-      fail("Could not find bundled plugin");
-      info("The CLI may not be properly installed");
+      fail("Could not find bundled plugin\nThe CLI may not be properly installed");
       process.exit(1);
     }
 
@@ -41,8 +40,7 @@ export const init = command({
     } else {
       const projectRoot = findProjectRoot();
       if (!projectRoot) {
-        fail("Not in a project directory");
-        info("Use --global to install globally, or run from a git repository");
+        fail("Not in a project directory\nUse --global to install globally, or run from a git repository");
         process.exit(1);
       }
       targetDir = projectRoot;
@@ -56,13 +54,10 @@ export const init = command({
     }
 
     if (result.installed) {
-      success("Plugin installed");
+      success(`Plugin installed\n  ${result.path}`);
     } else {
-      success("Plugin already installed");
-      info("Use --force to reinstall");
+      success(`Plugin already installed\nUse --force to reinstall\n  ${result.path}`);
     }
-
-    info(`  ${result.path}`);
 
     const openmodulesDir = path.join(targetDir, ENGRAMS_DIR);
     if (!fs.existsSync(openmodulesDir)) {

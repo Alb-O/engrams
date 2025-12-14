@@ -97,13 +97,17 @@ export const lazyInit = command({
       const indexEntry = index?.[name];
       const lockedRef = indexEntry?.wrap?.locked;
 
+      const details: string[] = [];
       if (wrap.sparse && wrap.sparse.length > 0) {
-        info(`Sparse patterns: ${wrap.sparse.join(", ")}`);
+        details.push(`Sparse patterns: ${wrap.sparse.join(", ")}`);
       }
       if (lockedRef) {
-        info(`Locked: ${lockedRef.slice(0, 12)}`);
+        details.push(`Locked: ${lockedRef.slice(0, 12)}`);
       } else if (wrap.ref) {
-        info(`Ref: ${wrap.ref}`);
+        details.push(`Ref: ${wrap.ref}`);
+      }
+      if (details.length > 0) {
+        info(details.join("\n"));
       }
 
       const contentDir = path.join(engramDir, CONTENT_DIR);
@@ -112,10 +116,10 @@ export const lazyInit = command({
         sparse: wrap.sparse,
       });
 
-      success(`Initialized: ${engramToml.name}`);
-      if (engramToml.description) {
-        info(`  ${engramToml.description}`);
-      }
+      const successMsg = engramToml.description
+        ? `Initialized: ${engramToml.name}\n  ${engramToml.description}`
+        : `Initialized: ${engramToml.name}`;
+      success(successMsg);
       return;
     }
 
@@ -130,8 +134,7 @@ export const lazyInit = command({
     const index = readIndex(projectRoot);
     if (!index) {
       if (fs.existsSync(engramDir)) {
-        fail(`Engram '${name}' has no [wrap] config and no index entry`);
-        info("Add a [wrap] section to engram.toml or sync the index");
+        fail(`Engram '${name}' has no [wrap] config and no index entry\nAdd a [wrap] section to engram.toml or sync the index`);
       } else {
         fail(`Engram '${name}' not found`);
       }
@@ -164,11 +167,8 @@ export const lazyInit = command({
     }
 
     if (!index[name]) {
-      fail(`Engram '${name}' not found in index`);
-      info("Available engrams:");
-      for (const key of Object.keys(index)) {
-        info(`  - ${key}`);
-      }
+      const available = Object.keys(index).map(k => `  - ${k}`).join("\n");
+      fail(`Engram '${name}' not found in index\nAvailable engrams:\n${available}`);
       process.exit(1);
     }
 
@@ -183,10 +183,10 @@ export const lazyInit = command({
 
     if (initSubmodule(projectRoot, submodulePath)) {
       const entry = index[name];
-      success(`Initialized: ${entry.name}`);
-      if (entry.description) {
-        info(`  ${entry.description}`);
-      }
+      const successMsg = entry.description
+        ? `Initialized: ${entry.name}\n  ${entry.description}`
+        : `Initialized: ${entry.name}`;
+      success(successMsg);
     } else {
       fail(`Failed to initialize ${name}`);
       process.exit(1);
@@ -225,8 +225,7 @@ export const showIndex = command({
 
     const index = readIndex(projectRoot);
     if (!index) {
-      fail("No engram index found");
-      info("Run 'engram sync' to create the index");
+      fail("No engram index found\nRun 'engram sync' to create the index");
       process.exit(1);
     }
 
@@ -244,9 +243,11 @@ export const showIndex = command({
         ? colors.green("●")
         : colors.dim("○");
 
-      raw(`${status} ${colors.cyan(name)}: ${entry.name}`);
+      const lines: string[] = [];
+      lines.push(`${status} ${colors.cyan(name)}: ${entry.name}`);
+      
       if (entry.description) {
-        info(`    ${entry.description}`);
+        lines.push(`    ${colors.dim(entry.description)}`);
       }
 
       if (entry["disclosure-triggers"]) {
@@ -262,7 +263,7 @@ export const showIndex = command({
           parts.push(`any: ${triggers["any-msg"].join(", ")}`);
         }
         if (parts.length) {
-          info(`    disclosure: ${parts.join(" | ")}`);
+          lines.push(`    ${colors.dim("disclosure: " + parts.join(" | "))}`);
         }
       }
 
@@ -279,11 +280,13 @@ export const showIndex = command({
           parts.push(`any: ${triggers["any-msg"].join(", ")}`);
         }
         if (parts.length) {
-          info(`    activation: ${parts.join(" | ")}`);
+          lines.push(`    ${colors.dim("activation: " + parts.join(" | "))}`);
         }
       }
+      
+      raw(lines.join("\n"));
     }
 
-    info(`\n● initialized  ○ not initialized`);
+    raw(colors.dim("\n● initialized  ○ not initialized"));
   },
 });

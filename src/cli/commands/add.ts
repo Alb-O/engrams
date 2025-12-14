@@ -56,8 +56,7 @@ export const add = command({
   handler: async ({ repo, name, global: isGlobal, clone, force, noCache }) => {
     const parsed = parseRepoUrl(repo);
     if (!parsed) {
-      fail(`Invalid repository format: ${repo}`);
-      info(`Formats: owner/repo, domain:owner/repo, or full URL\nSupported domains: ${getSupportedDomains().join(", ")}`);
+      fail(`Invalid repository format: ${repo}\nFormats: owner/repo, domain:owner/repo, or full URL\nSupported domains: ${getSupportedDomains().join(", ")}`);
       process.exit(1);
     }
 
@@ -71,8 +70,7 @@ export const add = command({
     }
 
     if (!projectRoot) {
-      fail("Not in a project directory");
-      info("Use --global to install globally, or run from a git repository");
+      fail("Not in a project directory\nUse --global to install globally, or run from a git repository");
       process.exit(1);
     }
 
@@ -97,8 +95,7 @@ async function handleAdd({ parsed, engramName, projectRoot, targetDir, isGlobal,
     const relativePath = path.relative(projectRoot, targetDir);
 
     if (relativePath.startsWith("..") || path.isAbsolute(relativePath)) {
-      fail(`Force cleanup refused: target path escapes project root`);
-      info(`  Project root: ${projectRoot}\n  Target: ${targetDir}`);
+      fail(`Force cleanup refused: target path escapes project root\n  Project root: ${projectRoot}\n  Target: ${targetDir}`);
       process.exit(1);
     }
 
@@ -132,8 +129,7 @@ async function handleAdd({ parsed, engramName, projectRoot, targetDir, isGlobal,
 
     const realGitModulesPath = fs.existsSync(gitModulesPath) ? fs.realpathSync(gitModulesPath) : gitModulesPath;
     if (!realGitModulesPath.startsWith(fs.realpathSync(gitDir))) {
-      fail(`Force cleanup refused: git modules path escapes .git directory`);
-      info(`  Git dir: ${gitDir}\n  Modules path: ${gitModulesPath}`);
+      fail(`Force cleanup refused: git modules path escapes .git directory\n  Git dir: ${gitDir}\n  Modules path: ${gitModulesPath}`);
       process.exit(1);
     }
 
@@ -147,8 +143,7 @@ async function handleAdd({ parsed, engramName, projectRoot, targetDir, isGlobal,
   }
 
   if (fs.existsSync(targetDir)) {
-    fail(`Engram already exists at ${targetDir}`);
-    info("Use --force to overwrite");
+    fail(`Engram already exists at ${targetDir}\nUse --force to overwrite`);
     process.exit(1);
   }
 
@@ -157,12 +152,11 @@ async function handleAdd({ parsed, engramName, projectRoot, targetDir, isGlobal,
     fs.mkdirSync(parentDir, { recursive: true });
   }
 
-  info(`Adding ${parsed.owner}/${parsed.repo} as ${engramName}...`);
-
   const cached = isCached(parsed.url);
-  if (cached) {
-    info("Using cached repository...");
-  }
+  const addMsg = cached
+    ? `Adding ${parsed.owner}/${parsed.repo} as ${engramName}... (using cache)`
+    : `Adding ${parsed.owner}/${parsed.repo} as ${engramName}...`;
+  info(addMsg);
 
   try {
     if (!clone && !isGlobal) {
@@ -172,18 +166,19 @@ async function handleAdd({ parsed, engramName, projectRoot, targetDir, isGlobal,
     }
   } catch (error) {
     const err = error as Error;
-    fail(`Failed to add engram '${engramName}'`);
-    info(
-      `  ${err.message}\n\n` +
-      `Troubleshooting:\n` +
-      `  - Check if the repository URL is correct and accessible\n` +
-      `  - Verify you have network connectivity and auth for the remote\n` +
-      `  - Try --no-cache if cache may be corrupted`,
-    );
+    const hints = [
+      `  ${err.message}`,
+      "",
+      "Troubleshooting:",
+      "  - Check if the repository URL is correct and accessible",
+      "  - Verify you have network connectivity and auth for the remote",
+      "  - Try --no-cache if cache may be corrupted",
+    ];
     if (!isGlobal) {
-      info("  - Use --clone to clone directly instead of as a submodule");
+      hints.push("  - Use --clone to clone directly instead of as a submodule");
     }
-    info("  - Use --force to overwrite an existing engram");
+    hints.push("  - Use --force to overwrite an existing engram");
+    fail(`Failed to add engram '${engramName}'\n${hints.join("\n")}`);
     process.exit(1);
   }
 }

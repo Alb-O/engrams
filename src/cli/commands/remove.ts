@@ -36,8 +36,7 @@ export const remove = command({
       targetDir = path.join(paths.global, name);
     } else {
       if (!projectRoot || !paths.local) {
-        fail("Not in a project directory");
-        info("Use --global to remove a global engram");
+        fail("Not in a project directory\nUse --global to remove a global engram");
         process.exit(1);
       }
       targetDir = path.join(paths.local, name);
@@ -62,8 +61,7 @@ export const remove = command({
     }
 
     if (!fs.existsSync(targetDir)) {
-      fail(`Engram not found: ${name}`);
-      info(`Looked in: ${targetDir}`);
+      fail(`Engram not found: ${name}\nLooked in: ${targetDir}`);
       process.exit(1);
     }
 
@@ -122,8 +120,7 @@ export const remove = command({
       const err = error as { message?: string; stderr?: Buffer };
       const errorMessage =
         err?.message || err?.stderr?.toString() || String(error);
-      fail("Failed to remove engram");
-      info(errorMessage);
+      fail(`Failed to remove engram\n${errorMessage}`);
       process.exit(1);
     }
   },

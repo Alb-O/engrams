@@ -42,8 +42,7 @@ export const sync = command({
       process.exit(0);
     }
 
-    info(`Found ${engramCount} engram(s):`);
-    for (const [name, entry] of Object.entries(index)) {
+    const engramLines = Object.entries(index).map(([name, entry]) => {
       const disclosureCount =
         (entry["disclosure-triggers"]?.["any-msg"]?.length || 0) +
         (entry["disclosure-triggers"]?.["user-msg"]?.length || 0) +
@@ -56,12 +55,13 @@ export const sync = command({
         disclosureCount + activationCount > 0
           ? ` [${disclosureCount} disclosure, ${activationCount} activation]`
           : "";
-      info(`  ${name}: ${entry.name}${triggerInfo}`);
-    }
+      return `  ${name}: ${entry.name}${triggerInfo}`;
+    });
+
+    info(`Found ${engramCount} engram(s):\n${engramLines.join("\n")}`);
 
     if (dryRun) {
-      warn("[dry-run] Would write index:");
-      raw(JSON.stringify(index, null, 2));
+      warn("[dry-run] Would write index:\n" + JSON.stringify(index, null, 2));
       return;
     }
 

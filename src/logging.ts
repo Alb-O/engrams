@@ -11,7 +11,9 @@ export const colors = {
   cyan: pc.cyan,
 } as const;
 
-export const logger = createConsola();
+export const logger = createConsola({
+  fancy: true,
+} as Parameters<typeof createConsola>[0]);
 
 export function info(message: string, ...args: unknown[]) {
   logger.info(message, ...args);

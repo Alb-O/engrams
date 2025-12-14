@@ -1,0 +1,45 @@
+id: no-logger-in-loop
+language: typescript
+severity: warning
+message: "Logger calls inside loops create spam. Collect and log once after the loop."
+note: |
+  Calling logger functions inside loops creates visual noise with repeated
+  icons and timestamps. Instead, collect the data and log once.
+  
+  Instead of:
+    for (const item of items) {
+      info(`  ${item.name}`);
+    }
+  
+  Use:
+    const lines = items.map(item => `  ${item.name}`);
+    info(lines.join("\n"));
+  
+  Or build a single message:
+    info(`Found ${items.length} items:\n${items.map(i => `  ${i.name}`).join("\n")}`);
+files:
+  - src/cli/**/*.ts
+utils:
+  logger-call:
+    any:
+      - pattern: info($$$)
+      - pattern: warn($$$)
+      - pattern: fail($$$)
+      - pattern: success($$$)
+      - pattern: log($$$)
+      - pattern: error($$$)
+      - pattern: raw($$$)
+rule:
+  any:
+    - all:
+        - kind: for_statement
+        - has:
+            matches: logger-call
+    - all:
+        - kind: for_in_statement
+        - has:
+            matches: logger-call
+    - all:
+        - kind: while_statement
+        - has:
+            matches: logger-call

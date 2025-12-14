@@ -1,72 +1,59 @@
 id: no-consecutive-same-logger
 language: typescript
 severity: warning
-message: "Consecutive logger calls of the same type should use multi-line string."
+message: "Consecutive logger calls should be consolidated into a single call."
 note: |
-  Consecutive logger calls of the same severity can be combined using newlines.
+  Back-to-back logger calls create visual noise with repeated icons/timestamps.
+  Consolidate into a single call using newlines.
   
   Instead of:
     info("Line 1");
     info("Line 2");
-    info("Line 3");
+    warn("Warning");
   
   Use:
-    info("Line 1\nLine 2\nLine 3");
+    info("Line 1\nLine 2");
+    warn("Warning");
+  
+  Or for different severities that should appear together:
+    info("Line 1\nLine 2\nWarning: something");
   
   For empty line breaks, embed \n in the string rather than calling log("").
 files:
   - src/cli/**/*.ts
 utils:
-  info-stmt:
-    all:
-      - kind: expression_statement
-      - has:
-          pattern: info($$$)
-  warn-stmt:
-    all:
-      - kind: expression_statement
-      - has:
-          pattern: warn($$$)
-  fail-stmt:
-    all:
-      - kind: expression_statement
-      - has:
-          pattern: fail($$$)
-  success-stmt:
-    all:
-      - kind: expression_statement
-      - has:
-          pattern: success($$$)
-  log-stmt:
-    all:
-      - kind: expression_statement
-      - has:
-          pattern: log($$$)
-  error-stmt:
-    all:
-      - kind: expression_statement
-      - has:
-          pattern: error($$$)
-  raw-stmt:
-    all:
-      - kind: expression_statement
-      - has:
-          pattern: raw($$$)
+  any-logger-stmt:
+    any:
+      - all:
+          - kind: expression_statement
+          - has:
+              pattern: info($$$)
+      - all:
+          - kind: expression_statement
+          - has:
+              pattern: warn($$$)
+      - all:
+          - kind: expression_statement
+          - has:
+              pattern: fail($$$)
+      - all:
+          - kind: expression_statement
+          - has:
+              pattern: success($$$)
+      - all:
+          - kind: expression_statement
+          - has:
+              pattern: log($$$)
+      - all:
+          - kind: expression_statement
+          - has:
+              pattern: error($$$)
+      - all:
+          - kind: expression_statement
+          - has:
+              pattern: raw($$$)
 rule:
-  any:
-    - all:
-        - matches: info-stmt
-        - follows:
-            matches: info-stmt
-    - all:
-        - matches: warn-stmt
-        - follows:
-            matches: warn-stmt
-    - all:
-        - matches: log-stmt
-        - follows:
-            matches: log-stmt
-    - all:
-        - matches: raw-stmt
-        - follows:
-            matches: raw-stmt
+  all:
+    - matches: any-logger-stmt
+    - follows:
+        matches: any-logger-stmt

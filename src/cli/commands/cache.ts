@@ -34,12 +34,10 @@ const list = command({
     let totalSize = 0;
     for (const repo of cached) {
       totalSize += repo.size;
-      raw(`  ${repo.url}`);
-      info(`    ${formatBytes(repo.size)}`);
+      raw(`  ${repo.url}\n    ${formatBytes(repo.size)}`);
     }
 
-    raw("");
-    info(`Total: ${cached.length} repos, ${formatBytes(totalSize)}\nCache directory: ${getCacheDir()}`);
+    raw(`\nTotal: ${cached.length} repos, ${formatBytes(totalSize)}\nCache directory: ${getCacheDir()}`);
   },
 });
 
