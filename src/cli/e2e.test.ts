@@ -59,7 +59,7 @@ async function createGitRepo(dir: string): Promise<void> {
   gitExec(["init"], dir);
   gitExec(["config", "user.email", "test@test.com"], dir);
   gitExec(["config", "user.name", "Test User"], dir);
-  await fs.writeFile(path.join(dir, ".gitkeep"), "");
+  await Bun.write(path.join(dir, ".gitkeep"), "");
   gitExec(["add", ".gitkeep"], dir);
   gitExec(["commit", "-m", "Initial commit"], dir);
 }
@@ -77,7 +77,7 @@ async function createSourceRepo(dir: string, files: Record<string, string>): Pro
   for (const [filePath, content] of Object.entries(files)) {
     const fullPath = path.join(workDir, filePath);
     await fs.mkdir(path.dirname(fullPath), { recursive: true });
-    await fs.writeFile(fullPath, content);
+    await Bun.write(fullPath, content);
   }
 
   gitExec(["add", "-A"], workDir);
@@ -143,8 +143,8 @@ async function createEngram(
   readme?: string,
 ): Promise<void> {
   await fs.mkdir(engramDir, { recursive: true });
-  await fs.writeFile(path.join(engramDir, MANIFEST_FILENAME), createManifest(opts));
-  await fs.writeFile(
+  await Bun.write(path.join(engramDir, MANIFEST_FILENAME), createManifest(opts));
+  await Bun.write(
     path.join(engramDir, DEFAULT_PROMPT_FILENAME),
     readme || `# ${opts.name}\n\nTest engram content.`,
   );
@@ -255,7 +255,7 @@ describe("e2e: Git ref-based index", () => {
       disclosureTriggers: ["docs", "documentation"],
     });
 
-    await fs.writeFile(path.join(engramDir, MANIFEST_FILENAME), manifest);
+    await Bun.write(path.join(engramDir, MANIFEST_FILENAME), manifest);
 
     const entry = parseEngramToml(path.join(engramDir, MANIFEST_FILENAME));
 
@@ -609,7 +609,7 @@ describe("e2e: Mixed engram types workflow", () => {
       description: "Internal project docs",
       disclosureTriggers: ["project", "internal"],
     });
-    await fs.writeFile(
+    await Bun.write(
       path.join(engramsDir, "project-docs", "CONTRIBUTING.md"),
       "# Contributing Guide",
     );
