@@ -6,7 +6,7 @@ import {
   string,
 } from "cmd-ts";
 import * as readline from "node:readline";
-import { info, success, warn, fail, log } from "../../logging";
+import { info, success, warn, fail, raw } from "../../logging";
 import {
   getCacheDir,
   listCachedRepos,
@@ -29,16 +29,16 @@ const list = command({
       return;
     }
 
-    log("Cached repositories:\n");
+    raw("Cached repositories:\n");
 
     let totalSize = 0;
     for (const repo of cached) {
       totalSize += repo.size;
-      log(`  ${repo.url}`);
+      raw(`  ${repo.url}`);
       info(`    ${formatBytes(repo.size)}`);
     }
 
-    log("");
+    raw("");
     info(`Total: ${cached.length} repos, ${formatBytes(totalSize)}\nCache directory: ${getCacheDir()}`);
   },
 });
@@ -145,7 +145,7 @@ const path_cmd = command({
   description: "Show cache directory path",
   args: {},
   handler: async () => {
-    log(getCacheDir());
+    raw(getCacheDir());
   },
 });
 

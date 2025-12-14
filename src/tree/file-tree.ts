@@ -3,9 +3,13 @@ import { join, relative } from "node:path";
 import os from "node:os";
 import ignore, { type Ignore } from "ignore";
 import type { FileTreeOptions } from "../core/types";
-import { logWarning } from "../logging";
 import { extractOneliner } from "./comment-parser";
 import { ONELINER_PATTERN, ONELINER_FILENAMES } from "../constants";
+
+interface FileEntry {
+  path: string;
+  oneliner: string | null;
+}
 
 // Hide these files/directories by default. The manifest is already parsed, agent doesn't need to see it.
 const DEFAULT_EXCLUDE_PATTERNS = [
@@ -99,6 +103,7 @@ async function safeStat(path: string) {
 /**
  * Generates a flat list of absolute file paths in a directory.
  * Supports .ignore file with gitignore syntax and oneliner descriptions.
+ * When maxFiles is set, prioritizes files with oneliners over those without.
  */
 export async function generateFileTree(
   directory: string,
@@ -110,6 +115,7 @@ export async function generateFileTree(
     ignoreFile = ".ignore",
     includeMetadata = false,
     manifestOneliners = {},
+    maxFiles,
   } = options;
 
   // Load .ignore file from root directory
@@ -122,13 +128,13 @@ export async function generateFileTree(
   const collectFiles = async (
     dir: string,
     depth: number,
-  ): Promise<string[]> => {
+  ): Promise<FileEntry[]> => {
     if (depth > maxDepth) return [];
 
     const entries = await safeReaddir(dir);
     if (entries.length === 0) return [];
 
-    const lines: string[] = [];
+    const fileEntries: FileEntry[] = [];
 
     // Get directory description if it has one
     if (includeMetadata && dir !== directory) {
@@ -141,11 +147,17 @@ export async function generateFileTree(
           manifestOneliner.length > 80
             ? `${manifestOneliner.slice(0, 77)}...`
             : manifestOneliner;
-        lines.push(`${shortenPath(dir)}/  # ${truncated}`);
+        fileEntries.push({
+          path: `${shortenPath(dir)}/`,
+          oneliner: truncated,
+        });
       } else {
         const dirComment = await getDirOneliner(dir);
         if (dirComment) {
-          lines.push(`${shortenPath(dir)}/  ${dirComment}`);
+          fileEntries.push({
+            path: `${shortenPath(dir)}/`,
+            oneliner: dirComment.replace(/^# /, ""),
+          });
         }
       }
     }
@@ -172,21 +184,21 @@ export async function generateFileTree(
       if (isDir) {
         // Recurse into directory
         const subFiles = await collectFiles(fullPath, depth + 1);
-        lines.push(...subFiles);
+        fileEntries.push(...subFiles);
       } else {
         // Add file with optional metadata
-        let line = shortenPath(fullPath);
+        const path = shortenPath(fullPath);
+        let oneliner: string | null = null;
+
         if (includeMetadata) {
           const relPath = relative(directory, fullPath);
           const manifestOneliner = manifestOneliners[relPath];
 
           if (manifestOneliner) {
-            // Manifest oneliners take precedence
-            const truncated =
+            oneliner =
               manifestOneliner.length > 80
                 ? `${manifestOneliner.slice(0, 77)}...`
                 : manifestOneliner;
-            line = `${shortenPath(fullPath)}  # ${truncated}`;
           } else {
             // Default oneliner for README files since they're shown on activation
             const lowerName = entry.name.toLowerCase();
@@ -195,30 +207,65 @@ export async function generateFileTree(
               lowerName === "readme.txt" ||
               lowerName === "readme"
             ) {
-              line = `${shortenPath(fullPath)}  # module README (shown above)`;
+              oneliner = "module README (shown above)";
             } else {
               const comment = await getFileInlineComment(fullPath);
               if (comment) {
-                line = `${shortenPath(fullPath)}  ${comment}`;
+                oneliner = comment.replace(/^# /, "");
               }
             }
           }
         }
-        lines.push(line);
+        fileEntries.push({ path, oneliner });
       }
     }
 
-    return lines;
+    return fileEntries;
   };
 
   // Check if directory exists first
   const stat = await safeStat(directory);
   if (!stat?.isDirectory()) return "";
 
-  const fileLines = await collectFiles(directory, 1);
+  const allEntries = await collectFiles(directory, 1);
 
   // Sort alphabetically for consistent output
-  fileLines.sort((a, b) => a.localeCompare(b));
+  allEntries.sort((a, b) => a.path.localeCompare(b.path));
 
-  return fileLines.join("\n");
+  // Apply truncation with oneliner prioritization
+  let displayEntries = allEntries;
+  let truncatedCount = 0;
+
+  if (maxFiles !== undefined && allEntries.length > maxFiles) {
+    const withOneliner = allEntries.filter((e) => e.oneliner !== null);
+    const withoutOneliner = allEntries.filter((e) => e.oneliner === null);
+
+    if (withOneliner.length >= maxFiles) {
+      displayEntries = withOneliner.slice(0, maxFiles);
+    } else {
+      const remaining = maxFiles - withOneliner.length;
+      displayEntries = [
+        ...withOneliner,
+        ...withoutOneliner.slice(0, remaining),
+      ];
+    }
+    truncatedCount = allEntries.length - displayEntries.length;
+
+    // Re-sort after prioritization
+    displayEntries.sort((a, b) => a.path.localeCompare(b.path));
+  }
+
+  // Format entries to lines
+  const lines = displayEntries.map((entry) => {
+    if (entry.oneliner) {
+      return `${entry.path}  # ${entry.oneliner}`;
+    }
+    return entry.path;
+  });
+
+  if (truncatedCount > 0) {
+    lines.push(`\n... and ${truncatedCount} more files (use Read tool to explore)`);
+  }
+
+  return lines.join("\n");
 }

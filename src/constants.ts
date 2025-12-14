@@ -24,3 +24,6 @@ export const ONELINER_PATTERN = /^\.oneliner(\.txt)?$/;
 
 /** Ordered list of oneliner filenames to check (first match wins) */
 export const ONELINER_FILENAMES = [ONELINER_FILENAME, ONELINER_TXT_FILENAME] as const;
+
+/** Default max files to show in file tree (prioritizes files with oneliners) */
+export const DEFAULT_MAX_FILES = 50;

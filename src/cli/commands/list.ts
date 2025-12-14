@@ -2,7 +2,7 @@ import { command, flag } from "cmd-ts";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import * as TOML from "@iarna/toml";
-import { info, log, colors } from "../../logging";
+import { info, raw, colors } from "../../logging";
 import { getModulePaths, findProjectRoot, shortenPath } from "../utils";
 import { readIndex, isSubmoduleInitialized } from "../index-ref";
 import { MANIFEST_FILENAME, CONTENT_DIR, ENGRAMS_DIR } from "../../constants";
@@ -231,7 +231,7 @@ function printEngramTree(
       warning = colors.red(` (parse error: ${eg.parseError})`);
     }
 
-    log(
+    raw(
       `${prefix}${connector} ${statusDot} ${nameDisplay}${descDisplay}${triggerPart}${warning}`,
     );
 
@@ -356,7 +356,7 @@ export const list = command({
     let printedSection = false;
 
     if (globalEngrams.length > 0 && !localOnly) {
-      log(
+      raw(
         colors.bold("Global engrams") +
           colors.dim(` (${shortenPath(paths.global)})`) +
           colors.dim(` - ${totalGlobal} engram${totalGlobal === 1 ? "" : "s"}`),
@@ -366,7 +366,7 @@ export const list = command({
         for (const eg of flatList) {
           const statusDot = getStatusDot(eg);
           const indent = "  ".repeat(eg.depth);
-          log(`${indent}${statusDot} ${eg.name}`);
+          raw(`${indent}${statusDot} ${eg.name}`);
         }
       } else {
         printEngramTree(globalEngrams);
@@ -375,8 +375,8 @@ export const list = command({
     }
 
     if (localEngrams.length > 0 && !globalOnly) {
-      if (printedSection) log("");
-      log(
+      if (printedSection) raw("");
+      raw(
         colors.bold("Local engrams") +
           colors.dim(` (${shortenPath(paths.local!)})`) +
           colors.dim(` - ${totalLocal} engram${totalLocal === 1 ? "" : "s"}`),
@@ -386,13 +386,13 @@ export const list = command({
         for (const eg of flatList) {
           const statusDot = getStatusDot(eg);
           const indent = "  ".repeat(eg.depth);
-          log(`${indent}${statusDot} ${eg.name}`);
+          raw(`${indent}${statusDot} ${eg.name}`);
         }
       } else {
         printEngramTree(localEngrams);
       }
     }
 
-    info(`\n● initialized  ◐ lazy  ○ not initialized`);
+    raw(`\n● initialized  ◐ lazy  ○ not initialized`);
   },
 });

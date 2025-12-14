@@ -8,3 +8,23 @@ sparse = ["docs/**/*.mdx"]
 
 [disclosure-triggers]
 user-msg = ["bun"]
+
+[oneliners]
+"content/docs/" = "Root documentation directory"
+"content/docs/index.mdx" = "Bun overview and introduction"
+"content/docs/installation.mdx" = "How to install Bun on various platforms"
+"content/docs/quickstart.mdx" = "Getting started guide"
+"content/docs/typescript.mdx" = "TypeScript configuration and support"
+"content/docs/api/" = "Bun APIs (Bun.serve, Bun.file, etc.)"
+"content/docs/bundler/" = "Bundler and build system"
+"content/docs/cli/" = "CLI commands and flags"
+"content/docs/install/" = "Package manager (bun install)"
+"content/docs/runtime/" = "Runtime behavior, environment, plugins"
+"content/docs/test/" = "Test runner (bun test)"
+"content/docs/guides/" = "How-to guides and recipes"
+"content/docs/guides/binary/" = "Binary data conversions (Buffer, ArrayBuffer, etc.)"
+"content/docs/guides/http/" = "HTTP client and fetch patterns"
+"content/docs/guides/websocket/" = "WebSocket client and server"
+"content/docs/guides/test/" = "Testing patterns and utilities"
+"content/docs/guides/read-file/" = "File reading patterns"
+"content/docs/guides/write-file/" = "File writing patterns"

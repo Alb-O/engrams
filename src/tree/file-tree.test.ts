@@ -389,4 +389,123 @@ echo "hello"
       expect(tree).toContain("# API reference guide");
     });
   });
+
+  describe("truncation", () => {
+    it("limits output when maxFiles is set", async () => {
+      const engramDir = path.join(tempDir, "truncation-basic");
+      await mkdir(engramDir, { recursive: true });
+      await Bun.write(path.join(engramDir, "a.txt"), "a");
+      await Bun.write(path.join(engramDir, "b.txt"), "b");
+      await Bun.write(path.join(engramDir, "c.txt"), "c");
+      await Bun.write(path.join(engramDir, "d.txt"), "d");
+      await Bun.write(path.join(engramDir, "e.txt"), "e");
+
+      const tree = await generateFileTree(engramDir, { maxFiles: 3 });
+
+      const lines = tree.split("\n").filter((l) => l.includes(".txt"));
+      expect(lines).toHaveLength(3);
+      expect(tree).toContain("... and 2 more files");
+    });
+
+    it("prioritizes files with oneliners over plain files", async () => {
+      const engramDir = path.join(tempDir, "truncation-priority");
+      await mkdir(engramDir, { recursive: true });
+      await Bun.write(path.join(engramDir, "a-plain.txt"), "no oneliner");
+      await Bun.write(path.join(engramDir, "b-plain.txt"), "no oneliner");
+      await Bun.write(
+        path.join(engramDir, "c-documented.ts"),
+        "// oneliner: Important file\nexport {}",
+      );
+      await Bun.write(
+        path.join(engramDir, "d-documented.ts"),
+        "// oneliner: Another important\nexport {}",
+      );
+      await Bun.write(path.join(engramDir, "e-plain.txt"), "no oneliner");
+
+      const tree = await generateFileTree(engramDir, {
+        maxFiles: 3,
+        includeMetadata: true,
+      });
+
+      expect(tree).toContain("c-documented.ts");
+      expect(tree).toContain("# Important file");
+      expect(tree).toContain("d-documented.ts");
+      expect(tree).toContain("# Another important");
+      expect(tree).toContain("... and 2 more files");
+    });
+
+    it("includes plain files when oneliner count is below limit", async () => {
+      const engramDir = path.join(tempDir, "truncation-mixed");
+      await mkdir(engramDir, { recursive: true });
+      await Bun.write(path.join(engramDir, "a-plain.txt"), "plain");
+      await Bun.write(path.join(engramDir, "b-plain.txt"), "plain");
+      await Bun.write(
+        path.join(engramDir, "c-doc.ts"),
+        "// oneliner: Documented\nexport {}",
+      );
+      await Bun.write(path.join(engramDir, "d-plain.txt"), "plain");
+
+      const tree = await generateFileTree(engramDir, {
+        maxFiles: 3,
+        includeMetadata: true,
+      });
+
+      expect(tree).toContain("c-doc.ts");
+      expect(tree).toContain("# Documented");
+      // Should include 2 plain files to fill remaining slots
+      const plainCount = (tree.match(/-plain\.txt/g) || []).length;
+      expect(plainCount).toBe(2);
+      expect(tree).toContain("... and 1 more files");
+    });
+
+    it("does not truncate when file count is under limit", async () => {
+      const engramDir = path.join(tempDir, "truncation-under");
+      await mkdir(engramDir, { recursive: true });
+      await Bun.write(path.join(engramDir, "a.txt"), "a");
+      await Bun.write(path.join(engramDir, "b.txt"), "b");
+
+      const tree = await generateFileTree(engramDir, { maxFiles: 10 });
+
+      expect(tree).toContain("a.txt");
+      expect(tree).toContain("b.txt");
+      expect(tree).not.toContain("... and");
+    });
+
+    it("does not truncate when maxFiles is not set", async () => {
+      const engramDir = path.join(tempDir, "truncation-unlimited");
+      await mkdir(engramDir, { recursive: true });
+      for (let i = 0; i < 20; i++) {
+        await Bun.write(path.join(engramDir, `file${i}.txt`), `file ${i}`);
+      }
+
+      const tree = await generateFileTree(engramDir);
+
+      expect(tree).not.toContain("... and");
+      const lines = tree.split("\n").filter((l) => l.includes(".txt"));
+      expect(lines).toHaveLength(20);
+    });
+
+    it("maintains alphabetical sort after prioritization", async () => {
+      const engramDir = path.join(tempDir, "truncation-sort");
+      await mkdir(engramDir, { recursive: true });
+      await Bun.write(path.join(engramDir, "z-plain.txt"), "plain");
+      await Bun.write(
+        path.join(engramDir, "a-doc.ts"),
+        "// oneliner: A doc\nexport {}",
+      );
+      await Bun.write(
+        path.join(engramDir, "m-doc.ts"),
+        "// oneliner: M doc\nexport {}",
+      );
+
+      const tree = await generateFileTree(engramDir, {
+        maxFiles: 3,
+        includeMetadata: true,
+      });
+
+      const lines = tree.split("\n").filter((l) => !l.startsWith("..."));
+      const paths = lines.map((l) => l.split("  ")[0]);
+      expect(paths).toEqual([...paths].sort());
+    });
+  });
 });

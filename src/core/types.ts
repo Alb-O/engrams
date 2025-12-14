@@ -88,4 +88,10 @@ export interface FileTreeOptions {
    * These take precedence over file-based oneliners.
    */
   manifestOneliners?: Record<string, string>;
+  /**
+   * Maximum number of file entries to display.
+   * Files with oneliners are prioritized over those without.
+   * When truncated, a summary message is appended.
+   */
+  maxFiles?: number;
 }

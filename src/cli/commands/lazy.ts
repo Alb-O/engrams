@@ -2,7 +2,7 @@ import { command, positional, string, flag } from "cmd-ts";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import * as TOML from "@iarna/toml";
-import { info, success, warn, fail, log, colors } from "../../logging";
+import { info, success, warn, fail, raw, colors } from "../../logging";
 import { findProjectRoot, getModulePaths } from "../utils";
 import {
   readIndex,
@@ -231,11 +231,11 @@ export const showIndex = command({
     }
 
     if (json) {
-      log(JSON.stringify(index, null, 2));
+      raw(JSON.stringify(index, null, 2));
       return;
     }
 
-    log(colors.bold("Engram Index") + colors.dim(" (refs/engrams/index)\n"));
+    raw(colors.bold("Engram Index") + colors.dim(" (refs/engrams/index)\n"));
 
     for (const [name, entry] of Object.entries(index)) {
       const submodulePath = `${ENGRAMS_DIR}/${name}`;
@@ -244,7 +244,7 @@ export const showIndex = command({
         ? colors.green("●")
         : colors.dim("○");
 
-      log(`${status} ${colors.cyan(name)}: ${entry.name}`);
+      raw(`${status} ${colors.cyan(name)}: ${entry.name}`);
       if (entry.description) {
         info(`    ${entry.description}`);
       }

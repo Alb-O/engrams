@@ -13,10 +13,14 @@ note: |
     import { success, fail, info, warn, log } from "../../logging";
     success("Success!");
     fail("Error!");
+  
+  For raw untagged output (e.g., preview content), use the raw() function
+  from logging.ts which wraps console.log.
 files:
   - src/cli/**/*.ts
 ignores:
   - src/cli/cache/plugins.ts
+  - src/logging.ts
 rule:
   any:
     - pattern: console.log($$$ARGS)

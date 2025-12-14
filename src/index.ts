@@ -13,6 +13,7 @@ import {
   type ContextTriggerMatcher,
   type Engram,
 } from "./helpers";
+import { DEFAULT_MAX_FILES } from "./constants";
 
 /**
  * Shortens a path by replacing the home directory with ~
@@ -144,6 +145,7 @@ const EngramsPlugin: Plugin = async (input) => {
       const fileTree = await generateFileTree(engram.directory, {
         includeMetadata: true,
         manifestOneliners: engram.oneliners,
+        maxFiles: DEFAULT_MAX_FILES,
       });
       const treeSection = fileTree
         ? `\n\n## Available Resources:\n\`\`\`\n${fileTree}\n\`\`\``

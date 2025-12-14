@@ -1,4 +1,4 @@
-import { createConsola } from "consola/basic";
+import { createConsola } from "consola";
 import pc from "picocolors";
 import pkg from "../package.json";
 
@@ -43,6 +43,11 @@ export function debug(message: string, ...args: unknown[]) {
 
 export function log(message: string, ...args: unknown[]) {
   logger.log(message, ...args);
+}
+
+/** Output raw content without tags (for preview, JSON, piping) */
+export function raw(message: string) {
+  console.log(message);
 }
 
 export function box(message: string, ...args: unknown[]) {

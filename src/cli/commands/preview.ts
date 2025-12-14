@@ -2,13 +2,14 @@ import { command, positional, string } from "cmd-ts";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import * as TOML from "@iarna/toml";
-import { info, fail, log } from "../../logging";
+import { info, fail, raw } from "../../logging";
 import { getModulePaths, findProjectRoot, shortenPath } from "../utils";
 import { generateFileTree } from "../../tree/file-tree";
 import {
   MANIFEST_FILENAME,
   DEFAULT_PROMPT_FILENAME,
   CONTENT_DIR,
+  DEFAULT_MAX_FILES,
 } from "../../constants";
 
 interface Engram {
@@ -131,23 +132,23 @@ export const preview = command({
 
     if (!isInitialized) {
       const preamble = `# Engram: ${engram.name} [NOT INITIALIZED]\n\nThis engram's submodule has not been cloned yet.\n\n---\n\n`;
-      log(preamble + engram.content);
-      info(`\n--- End of preview ---\nRun 'engram lazy-init ${name}' to initialize this engram.`);
+      raw(preamble + engram.content);
+      info(`Run 'engram lazy-init ${name}' to initialize this engram.`);
       return;
     }
 
     const fileTree = await generateFileTree(engram.directory, {
       includeMetadata: true,
       manifestOneliners: engram.oneliners,
+      maxFiles: DEFAULT_MAX_FILES,
     });
 
     const treeSection = fileTree
-      ? `\n\n## Available Resources:\n\`\`\`\n${fileTree}\n\`\`\``
+      ? `\n\n## Available Resources:\n${fileTree}`
       : "";
 
     const preamble = `# Engram: ${engram.name}\n\nBase directory: ${shortenPath(engram.directory)}\n\nEngram README:\n\n---\n\n`;
 
-    log(preamble + engram.content + treeSection);
-    info("\n--- End of preview ---");
+    raw(preamble + engram.content + treeSection);
   },
 });
