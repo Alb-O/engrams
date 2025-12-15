@@ -1,77 +1,79 @@
-# engrams
+# Engrams
 
-Discovers modules and exposes each as a tool named `engram_<name>`. The plugin scans two locations in priority order: `$XDG_CONFIG_HOME/engrams` (or `~/.config/engrams`) for global modules, and `<project>/.engrams/` for project-local modules. Later paths override earlier ones when tool names collide.
+The next evolution of skills. Engrams is an OpenCode plugin and a CLI tool for turning mini repositories of docs, scripts, and references into lazy-loaded agent tools.
 
-When a module tool is invoked, the plugin injects the module content into the session. It also generates a flat listing of absolute file paths within the module directory, making scripts directly executable without path confusion.
+The plugin exposes on-demand tools to the agent, and invoking it injects the engram's README prompt plus a list of contained file paths.
+
+Engrams are discovered from two locations in priority order: `$XDG_CONFIG_HOME/engrams` (or `~/.config/engrams`) for global engrams, and `<project>/.engrams/` for project-local engrams; later paths override earlier ones when tool names collide.
+
+Use the `engram` CLI to create, wrap, and manage engrams (including lazy mode via `engram wrap --lazy` and `engram lazy-init`).
 
 ## Design Philosophy
 
-Each engram is a standalone git repository. This enables:
+An engram is a directory containing an `engram.toml` manifest.
 
-- Version control and history for each module
-- Easy sharing via `git clone` or `git submodule add`
-- Independent versioning and updates
+In practice, we recommend keeping each engram in its own git repository (a submodule inside your own project repo) so it can be versioned and shared as a modular bundle of useful agent goodies.
 
 **Naming convention**: We recommend prefixing repository names with `eg.` for organizational and filtering purposes (e.g., `eg.database-tools`, `eg.deploy-scripts`).
 
 ## Installation
 
-### As a project-local module
+### As a project-local engram
 
 ```bash
 # Clone directly into your project's .engrams directory
-git clone https://github.com/user/om.my-module .engrams/my-module
+git clone https://github.com/user/eg.my-engram .engrams/my-engram
 
 # Or add as a submodule for version tracking
-git submodule add https://github.com/user/om.my-module .engrams/my-module
+git submodule add https://github.com/user/eg.my-engram .engrams/my-engram
 ```
 
-### As a global module
+### As a global engram
 
 ```bash
-# Clone into your global modules directory
-git clone https://github.com/user/om.my-module ~/.config/engrams/my-module
+# Clone into your global engrams directory
+git clone https://github.com/user/eg.my-engram ~/.config/engrams/my-engram
 ```
 
-## Module Structure
+## Engram Structure
 
-Each module is a directory containing an `engram.toml` manifest:
+Each engram is a directory containing an `engram.toml` manifest:
 
 ```
-my-module/
-├── engram.toml         # Required - module manifest
-├── README.md               # Default prompt file (injected into agent context)
-├── .ignore                 # Optional - gitignore-style file filtering
+my-engram/
+├── engram.toml         # Required - engram manifest
+├── README.md           # Default prompt file (injected into agent context)
+├── .ignore             # Optional - gitignore-style file filtering
 └── scripts/
-    ├── .oneliner.txt       # Directory description
-    └── backup.sh           # Scripts, tools, references, etc.
+    ├── .oneliner.txt   # Directory description
+    └── backup.sh       # Scripts, tools, references, etc.
 ```
 
 ### `engram.toml`
 
-The module manifest:
+The engram manifest:
 
 ```toml
-name = "my-module"
+name = "my-engram"
 version = "0.1.0"
 description = "Short description for tool listing"
 
-# Optional: custom prompt file path (relative to module root)
+# Optional: custom prompt file path (relative to engram root)
 # Defaults to "README.md"
-prompt = "docs/AGENT.md"
+prompt = "docs/prompt.md"
 
 [author]
 name = "Your Name"
 url = "https://github.com/you"
 
-# Optional: trigger configuration for progressive module discovery
+# Optional: trigger configuration for progressive engram discovery
 [triggers]
 user-msg = ["database backup", "backup script", "db dump"]
 ```
 
 ### Context Triggers
 
-Modules can specify triggers that control when they become "visible" (shown in available tools list). Discovery is progressive: module tools stay hidden until a trigger matches; modules without triggers remain always visible.
+Engrams can specify triggers that control when they become "visible" (shown in available tools list). Discovery is progressive: engram tools stay hidden until a trigger matches; engrams without triggers remain always visible.
 
 The `[triggers]` section supports three arrays for fine-grained control:
 
@@ -95,10 +97,10 @@ Trigger patterns use git-style globs (including brace expansion), so `docstring{
 
 ### Prompt File
 
-By default, `README.md` at the module root is injected into the agent context when the module is invoked. Override this with the `prompt` field in the manifest:
+By default, `README.md` at the engram root is injected into the agent context when the engram is invoked. Override this with the `prompt` field in the manifest:
 
 ```toml
-prompt = "docs/instructions.md"      # Use a docs subdirectory
+prompt = "docs/prompt.md"    # Use a docs subdirectory
 ```
 
 ## File Descriptions
@@ -111,7 +113,7 @@ Files can declare a short description by including `oneliner:` anywhere in the f
 ```
 
 ```python
-# oneliner: Data processing module
+# oneliner: Data processing engram
 ```
 
 ```html
@@ -123,14 +125,14 @@ Directories use a `.oneliner` or `.oneliner.txt` file containing raw description
 The resulting file list appears in the agent context as:
 
 ```
-/home/user/.config/engrams/my-module/scripts/  # Shell scripts for automation
-/home/user/.config/engrams/my-module/scripts/backup.sh  # Database backup utilities
-/home/user/.config/engrams/my-module/data/config.json
+/home/user/.config/engrams/my-engram/scripts/  # Shell scripts for automation
+/home/user/.config/engrams/my-engram/scripts/backup.sh  # Database backup utilities
+/home/user/.config/engrams/my-engram/data/config.json
 ```
 
 ## Filtering Files
 
-Place a `.ignore` file in the module root to exclude paths from the listing. Standard gitignore syntax applies, including wildcards and negation patterns.
+Place a `.ignore` file in the engram root to exclude paths from the listing. Standard gitignore syntax applies, including wildcards and negation patterns.
 
 ```
 # .ignore
@@ -142,52 +144,52 @@ node_modules/
 
 The `engram.toml`, `.ignore`, and `.oneliner` files are excluded from listings by default.
 
-## Nested Modules
+## Nested Engrams
 
-Modules can contain other modules by placing `engram.toml` files in subdirectories. The directory hierarchy defines the logical organization—no additional configuration is needed.
+Engrams can contain other engrams by placing `engram.toml` files in subdirectories. The directory hierarchy defines the logical organization—no additional configuration is needed.
 
 ```
-parent-module/
-├── engram.toml           # Parent module
+parent/
+├── engram.toml           # Parent engram
 ├── README.md
-└── child-module/
-    ├── engram.toml       # Nested child module
+└── child/
+    ├── engram.toml       # Nested child engram
     └── README.md
 ```
 
 ### Visibility Rules
 
-Nested modules follow a strict visibility constraint: **a child module is only visible when its parent module is visible**. This creates a natural progressive discovery flow:
+Nested engrams follow a strict visibility constraint: **a child engram is only visible when its parent engram is visible**. This creates a natural progressive discovery flow:
 
-1. Parent module becomes visible (via trigger match or always-visible)
-1. Child modules can now become visible (via their own triggers or always-visible)
+1. Parent engram becomes visible (via trigger match or always-visible)
+1. Child engrams can now become visible (via their own triggers or always-visible)
 1. Grandchildren require both parent and grandparent to be visible, etc.
 
-This prevents child modules from appearing in isolation without their parent context.
+This prevents child engrams from appearing in isolation without their parent context.
 
 ### Tool Naming
 
-Nested modules get tool names that reflect their full path:
+Nested engrams get tool names that reflect their full path:
 
-- `parent-module/engram.toml` → `engram_parent_module`
-- `parent-module/child-module/engram.toml` → `engram_parent_module_child_module`
-- `parent-module/child-module/grandchild/engram.toml` → `engram_parent_module_child_module_grandchild`
+- `parent/engram.toml` → `engram_parent`
+- `parent/child/engram.toml` → `engram_parent_child`
+- `parent/child/grandchild/engram.toml` → `engram_parent_child_grandchild`
 
 ### Example: Layered Documentation
 
 ```
 docs/
 ├── engram.toml           # triggers: ["documentation", "docs"]
-├── README.md                 # General documentation guidelines
+├── README.md             # General documentation guidelines
 ├── api/
 │   ├── engram.toml       # triggers: ["api", "endpoint"]
-│   └── README.md             # API documentation specifics
+│   └── README.md         # API documentation specifics
 └── tutorials/
     ├── engram.toml       # triggers: ["tutorial", "guide"]
-    └── README.md             # Tutorial writing guidelines
+    └── README.md         # Tutorial writing guidelines
 ```
 
-When a user mentions "documentation", the parent `docs` module becomes visible. If they then mention "api", the `docs/api` child module also becomes visible. The `tutorials` module remains hidden until its trigger matches.
+When a user mentions "documentation", the parent `docs` engram becomes visible. If they then mention "api", the `docs/api` child engram also becomes visible. The `tutorials` engram remains hidden until its trigger matches.
 
 ## Wrapping External Repositories
 
